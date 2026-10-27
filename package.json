@@ -1,0 +1,23 @@
+{
+  "name": "threads-private-api",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Evidence-led research into browser-independent Threads direct messaging",
+  "type": "module",
+  "engines": { "node": "^24.22.1" },
+  "packageManager": "pnpm@12.15.0",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "test": "node --test tests/unit/*.test.ts",
+    "lint": "tsc --noEmit",
+    "verify:mcp": "node scripts/verification/mcp-smoke.ts"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "chrome-devtools-mcp": "1.12.0",
+    "node": "24.22.1",
+    "rea-agents": "6.8.0",
+    "typescript": "6.0.3"
+  }
+}

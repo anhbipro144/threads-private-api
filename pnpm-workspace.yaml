@@ -1,0 +1,3 @@
+allowBuilds:
+  node: true
+  '@lydell/node-pty': false
