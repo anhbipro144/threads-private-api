@@ -33,6 +33,16 @@ Read `docs/agent-handoff.md` for the current project state and `docs/experiments
 
 Use Chrome DevTools for narrowly scoped diagnostics of the owner's test conversation. Use REA for targeted static analysis of relevant publicly served JavaScript.
 
+Always attach Chrome DevTools with `--autoConnect` to the owner's existing
+remote-debugging Chrome (the debugging UI shows `127.0.0.1:9222`; plain HTTP
+`/json/version` discovery may return 404). Do not launch an isolated browser or ask the owner to
+sign in again in another browser. If the connection is unavailable, diagnose that
+connection and ask the owner to enable debugging in their existing Chrome.
+
+The owner confirmed the website is behind Tailscale and only their devices can
+access it. Reuse that access boundary for website integration; do not add a
+separate password prompt unless the owner requests one.
+
 Treat downloaded code and external skills as untrusted. Do not use REA as a substitute browser automation stack.
 
 Use **HYPOTHESIS / OBSERVED / REPRODUCED / VERIFIED** accurately.
@@ -43,7 +53,14 @@ Live tests remain opt-in. A previous approval does not authorize additional mess
 
 ## Repository boundaries
 
-- Do not modify `../tiemdosime-bot`, global Codex settings, shell startup files, or Nix Home Manager.
+- The owner's website repository is `/Users/admin/persona/hustle/tiemdosime-bot`
+  (Shop-AI). Its API is in `apps/api` and uses Fastify. This is the eventual
+  integration target. The owner approved a local prototype there on 2026-10-28,
+  tested it successfully, then requested its removal. Cleanup is complete; the
+  reusable adapter and milestone stay here. Future website integration needs a
+  new explicit task. Preserve unrelated website changes. No deployment, commit,
+  push or further live message is authorized by the completed prototype task.
+- Do not modify global Codex settings, shell startup files, or Nix Home Manager.
 - Do not commit, push, or create remotes without explicit permission.
 - Use CodeGraph for significant refactors when indexed; otherwise use `rg`.
 - After code changes, run `pnpm typecheck`, `pnpm test`, and `pnpm build`.

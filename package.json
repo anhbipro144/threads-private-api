@@ -1,9 +1,16 @@
 {
   "name": "threads-private-api",
-  "version": "0.0.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Evidence-led research into browser-independent Threads direct messaging",
   "type": "module",
+  "files": ["dist", "README.md"],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "engines": { "node": "^24.22.1" },
   "packageManager": "pnpm@12.15.0",
   "scripts": {

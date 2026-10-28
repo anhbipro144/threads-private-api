@@ -4,7 +4,7 @@
  * Scope is deliberately display-only: list the owner's conversations and read a
  * conversation's messages. Both operations were REPRODUCED in Node against
  * `POST /api/graphql` (see docs/protocol-map.md, E2/E3). Sending is NOT part of
- * this module — its wire operation is only OBSERVED once, not reproduced in Node.
+ * this module — the separate single-attempt text sender has its own safeguards.
  *
  * The caller owns the authenticated session and passes it in; this module never
  * stores, logs, or inspects session material. Parsers validate the response
@@ -84,6 +84,8 @@ export interface ThreadsDmReaderOptions {
    */
   readonly minIntervalMs?: number;
 }
+
+export type ThreadsSessionStatus = 'configured' | 'ready' | 'reconnect-required' | 'disconnected';
 
 /**
  * The request was rejected before it produced data, so the owner must supply a
@@ -168,12 +170,14 @@ export function parseMessageList(data: Record<string, unknown>): MessageListPage
     }
     const node = edge['node']['as_micg_interface'];
     if (!isObject(node)) throw new Error(`Threads read: message[${i}] has no as_micg_interface`);
+    const content = node['content'];
+    if (!isObject(content)) throw new Error(`Threads read: message[${i}] has no text content object`);
     return {
       messageId: requireString(node['message_id'], `message[${i}].message_id`),
       threadFbid: requireString(node['thread_fbid'], `message[${i}].thread_fbid`),
       senderFbid: requireString(node['sender_fbid'], `message[${i}].sender_fbid`),
       timestampMs: requireString(node['timestamp_ms'], `message[${i}].timestamp_ms`),
-      content: requireString(node['content'], `message[${i}].content`),
+      content: requireString(content['text_body'], `message[${i}].content.text_body`),
     };
   });
   return { messages, pageInfo: parsePageInfo(connection as Record<string, unknown>) };
@@ -242,7 +246,9 @@ export function sessionFromCapturedForms(capture: CapturedForms): ThreadsDmReadS
  * "owner re-auth required" without leaking session material. It never retries.
  */
 export class ThreadsDmReader {
-  readonly #session: ThreadsDmReadSession;
+  #session: ThreadsDmReadSession | null;
+  #sessionStatus: ThreadsSessionStatus = 'configured';
+  #sessionVersion = 0;
   readonly #endpoint: string;
   readonly #fetch: typeof fetch;
   readonly #minIntervalMs: number;
@@ -256,6 +262,29 @@ export class ThreadsDmReader {
     this.#minIntervalMs = options.minIntervalMs ?? 5000;
   }
 
+  /** Local state, not a claim about server-side session lifetime. */
+  get sessionStatus(): ThreadsSessionStatus { return this.#sessionStatus; }
+
+  /** The owner supplies a fresh session; no login or automatic retry is performed. */
+  replaceSession(session: ThreadsDmReadSession): void {
+    this.#session = session;
+    this.#sessionVersion++;
+    this.#sessionStatus = 'configured';
+  }
+
+  disconnect(): void {
+    this.#session = null;
+    this.#sessionVersion++;
+    this.#sessionStatus = 'disconnected';
+  }
+
+  #requireSession(): ThreadsDmReadSession {
+    if (!this.#session || this.#sessionStatus === 'reconnect-required') {
+      throw new ThreadsAuthRequiredError('owner must supply a replacement session');
+    }
+    return this.#session;
+  }
+
   /** Serializes requests and spaces them by at least `minIntervalMs`. */
   async #waitForTurn(): Promise<void> {
     const turn = this.#gate.then(async () => {
@@ -267,29 +296,39 @@ export class ThreadsDmReader {
     return turn;
   }
 
-  async #read(request: ThreadsReadRequest): Promise<Record<string, unknown>> {
+  async #read(build: (session: ThreadsDmReadSession) => ThreadsReadRequest): Promise<Record<string, unknown>> {
+    this.#requireSession();
     await this.#waitForTurn();
-    const response = await this.#fetch(this.#endpoint, {
-      method: 'POST',
-      headers: { ...request.headers },
-      body: request.body,
-      redirect: 'error',
-    });
-    if (response.status === 401 || response.status === 403) {
-      throw new ThreadsAuthRequiredError(`HTTP ${response.status}`);
+    const session = this.#requireSession();
+    const version = this.#sessionVersion;
+    const request = build(session);
+    try {
+      const response = await this.#fetch(this.#endpoint, {
+        method: 'POST', headers: { ...request.headers }, body: request.body, redirect: 'error',
+      });
+      if (response.status === 401 || response.status === 403) throw new ThreadsAuthRequiredError(`HTTP ${response.status}`);
+      if (response.status !== 200) throw new Error(`Threads read: HTTP ${response.status}`);
+      const data = parseGraphqlEnvelope(await response.text());
+      if (version !== this.#sessionVersion) throw new Error('Threads read: session changed; discard old response');
+      // Another in-flight read may have rejected this session; only replacement clears that state.
+      if (this.sessionStatus === 'reconnect-required') {
+        throw new ThreadsAuthRequiredError('owner must supply a replacement session');
+      }
+      this.#sessionStatus = 'ready';
+      return data;
+    } catch (error) {
+      if (version !== this.#sessionVersion) throw new Error('Threads read: session changed; discard old response');
+      if (error instanceof ThreadsAuthRequiredError) this.#sessionStatus = 'reconnect-required';
+      throw error;
     }
-    if (response.status !== 200) {
-      throw new Error(`Threads read: HTTP ${response.status}`);
-    }
-    return parseGraphqlEnvelope(await response.text());
   }
 
   async listThreads(cursor?: string): Promise<ThreadListPage> {
-    return parseThreadList(await this.#read(this.#session.listThreads(cursor)));
+    return parseThreadList(await this.#read(session => session.listThreads(cursor)));
   }
 
   async listMessages(threadId: string, cursor?: string): Promise<MessageListPage> {
-    return parseMessageList(await this.#read(this.#session.listMessages(threadId, cursor)));
+    return parseMessageList(await this.#read(session => session.listMessages(threadId, cursor)));
   }
 
   /** Yields every conversation, following `page_info` cursors on demand. */

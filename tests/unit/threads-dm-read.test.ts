@@ -32,7 +32,7 @@ const messageListData = {
               thread_fbid: 'thread-1',
               sender_fbid: 'user-A',
               timestamp_ms: '1000',
-              content: 'hello',
+              content: { text_body: 'hello' },
             },
           },
         },
@@ -96,6 +96,15 @@ test('parsers throw on malformed shapes instead of returning partial data', () =
     () => parseMessageList({ get_slide_thread: { messages: { edges: [{ node: {} }] } } }),
     /as_micg_interface/,
   );
+});
+
+test('text content comes from the observed content.text_body object; unsupported content fails closed', () => {
+  for (const content of ['hello', null, { text_body: null }, { attachment: {} }]) {
+    const data = structuredClone(messageListData);
+    const message = data.get_slide_thread.messages.edges[0]!.node.as_micg_interface;
+    Object.assign(message, { content });
+    assert.throws(() => parseMessageList(data), /text content object|content\.text_body/);
+  }
 });
 
 test('ThreadsDmReader.listThreads replays the request and parses', async () => {
@@ -194,6 +203,87 @@ test('a real GraphQL error is not mistaken for a re-auth prompt', () => {
     () => parseGraphqlEnvelope('{"errors":[{"message":"bad"}]}'),
     (error: Error) => !(error instanceof ThreadsAuthRequiredError) && /error/.test(error.message),
   );
+});
+
+test('rejected sessions pause reads until owner replacement; disconnect makes no request', async () => {
+  for (const rejection of [new Response('private body', { status: 403 }), jsonResponse({ error: 1357054 })]) {
+    const bodies: string[] = [];
+    const client = reader(async (_url, init) => {
+      bodies.push(String(init?.body));
+      return bodies.length === 1 ? rejection : jsonResponse({ data: threadListData });
+    });
+    assert.equal(client.sessionStatus, 'configured');
+    await assert.rejects(client.listThreads(), ThreadsAuthRequiredError);
+    assert.equal(client.sessionStatus, 'reconnect-required');
+    await assert.rejects(client.listThreads(), ThreadsAuthRequiredError);
+    assert.equal(bodies.length, 1);
+    client.replaceSession({ ...stubSession(), listThreads: () => ({ body: 'fresh synthetic session', headers: {} }) });
+    assert.equal(client.sessionStatus, 'configured');
+    await client.listThreads();
+    assert.equal(client.sessionStatus, 'ready');
+    assert.deepEqual(bodies, ['b', 'fresh synthetic session']);
+    client.disconnect();
+    await assert.rejects(client.listThreads(), ThreadsAuthRequiredError);
+    assert.equal(client.sessionStatus, 'disconnected');
+    assert.equal(bodies.length, 2);
+  }
+});
+
+test('ordinary read failures do not falsely mark a session as rejected or retry', async () => {
+  let calls = 0;
+  const client = reader(async () => { calls++; return jsonResponse({ errors: [{ message: 'synthetic error' }] }); });
+  await assert.rejects(client.listThreads());
+  assert.equal(client.sessionStatus, 'configured');
+  assert.equal(calls, 1);
+});
+
+test('late responses from a replaced session are discarded without rejecting the new session', async () => {
+  for (const oldStatus of [200, 403]) {
+    let release!: (value: Response) => void, started!: () => void;
+    const active = new Promise<void>(resolve => { started = resolve; });
+    let calls = 0;
+    const client = reader(async () => {
+      calls++;
+      if (calls === 1) { started(); return new Promise<Response>(resolve => { release = resolve; }); }
+      return jsonResponse({ data: threadListData });
+    });
+    const old = client.listThreads();
+    await active;
+    client.replaceSession(stubSession());
+    await client.listThreads();
+    release(jsonResponse({ data: threadListData }, oldStatus));
+    await assert.rejects(old, /session changed/);
+    assert.equal(client.sessionStatus, 'ready');
+    assert.equal(calls, 2);
+  }
+});
+
+test('a concurrent success cannot clear another read\'s auth rejection', async () => {
+  const releases: ((response: Response) => void)[] = [];
+  let started!: () => void;
+  const bothStarted = new Promise<void>(resolve => { started = resolve; });
+  const client = reader(async () => new Promise<Response>(resolve => {
+    releases.push(resolve); if (releases.length === 2) started();
+  }));
+  const first = client.listThreads(), second = client.listThreads();
+  await bothStarted;
+  releases[0]!(jsonResponse({ error: 1357054 }));
+  await assert.rejects(first, ThreadsAuthRequiredError);
+  releases[1]!(jsonResponse({ data: threadListData }));
+  await assert.rejects(second, ThreadsAuthRequiredError);
+  await assert.rejects(client.listThreads(), ThreadsAuthRequiredError);
+  assert.equal(client.sessionStatus, 'reconnect-required');
+  assert.equal(releases.length, 2);
+});
+
+test('queued reads build from the replacement session at dispatch time', async () => {
+  const bodies: string[] = [];
+  const client = reader(async (_url, init) => { bodies.push(String(init?.body)); return jsonResponse({ data: threadListData }); }, 40);
+  await client.listThreads();
+  const queued = client.listThreads();
+  client.replaceSession({ ...stubSession(), listThreads: () => ({ body: 'replacement', headers: {} }) });
+  await queued;
+  assert.deepEqual(bodies, ['b', 'replacement']);
 });
 
 test('the rate cap spaces requests and serializes concurrent callers', async () => {

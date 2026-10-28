@@ -36,9 +36,18 @@ the Node package's install script is allowed. No workspace packages exist.
 ## Scoped configuration
 
 An existing global `chrome-devtools` registration uses `@latest --autoConnect`.
-It was not used or edited. The same project server name overrides it with pinned
-local files and `--isolated --redact-network-headers --no-usage-statistics
---no-performance-crux`. `--slim` and `--userDataDir` are absent.
+It was not edited. The project server overrides it with pinned local files and
+`--autoConnect --redact-network-headers --no-usage-statistics
+--no-performance-crux`. The owner explicitly requires attachment to their running
+remote-debugging Chrome; never launch a second isolated browser. This supersedes
+the initial isolated setup recorded below. `--slim` and `--userDataDir` are absent.
+
+The current Chrome debugging UI exposed a server at `127.0.0.1:9222`, but standard
+`/json/version` discovery returned 404. The supported `--autoConnect` handshake
+attached successfully to the owner's already-authenticated Threads tab without
+another login. Enable debugging on `chrome://inspect/#remote-debugging` in that
+same Chrome, and accept a connection prompt if shown. Reconnect the project MCP
+server after changing flags; an already-running server retains its old settings.
 
 REA's **read-only** `setup --client codex --dry-run --json` proposed changing
 `~/.codex/config.toml` and installing `~/.agents/skills/reverse-engineer-anything`.
@@ -54,7 +63,7 @@ emulators, and mitmproxy were not installed. REA depends transitively on
 playwright-core; no Playwright MCP or additional browser server was configured.
 
 `codex mcp list --json` **with the working directory set to this repository**
-resolved both local entries and exact isolated Chrome flags. No trust settings
+resolved both local entries and the then-current isolated Chrome flags. No trust settings
 were written. Invoking the listing from another working directory can show the
 inherited global entry; always change directory first.
 
@@ -62,13 +71,15 @@ inherited global entry; always change directory first.
 
 The checked-in `scripts/verification/mcp-smoke.ts` connects directly over stdio
 JSON-RPC, initializes the server, lists tools, invokes them, and closes resources.
+It now attaches with `--autoConnect` and owns a new public test tab; it closes only
+that tab and its MCP connection, leaving the owner's Chrome running.
 This proves server operation; it does not prove that this already-running parent
 Codex conversation hot-loaded the project tools.
 
 | Server | Actual result |
 | --- | --- |
 | Chrome | initialize; tools/list: 32 tools |
-| Chrome | list_pages: passed, temporary isolated browser |
+| Chrome | list_pages: passed, temporary isolated browser (initial setup) |
 | Chrome | navigate_page: example.com passed |
 | Chrome | take_snapshot: passed |
 | Chrome | list_network_requests: passed |

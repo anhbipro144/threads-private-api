@@ -9,8 +9,9 @@ and independently confirmed exactly one receipt on B.
 
 - Two owner-controlled test accounts only; inspect only their agreed test chat.
 - Begin with read-only observation; owner handles sign-in and challenges.
-- Use isolated temporary Chrome. Persistent authenticated state needs approval,
-  an external research-only directory, and removal of `--isolated` if introduced.
+- Always attach to the owner's existing remote-debugging Chrome with
+  `--autoConnect`, per the owner's explicit preference. Do not launch another
+  isolated browser or request another sign-in there.
 - Store private captures/state outside this repository and outside context-mode's
   persistent knowledge base. Use owner-selected private storage with mode 0700
   directories / 0600 files. Avoid raw HAR export unless strictly necessary.
@@ -26,6 +27,121 @@ and independently confirmed exactly one receipt on B.
   means unknown outcome until reconciled with the receiving test account.
 - Stop on login challenge, unexpected account content, or access-control barrier.
   Do not bypass security or broaden account/recipient scope.
+
+## Latest sending receipt checkpoint (2026-10-28)
+
+### Owner-tested local website milestone and retirement
+
+The owner manually tested the live local application and reported success.
+Before shutdown, the runtime reported one provider send attempt. Actual browser
+reads and draft preparation had passed through Next → Fastify → Node; the agent
+did not click Send during the owner's test. This records owner acceptance of the
+website workflow, without inventing a separate acknowledgement/duplicate-count
+trace or new explicit B-receipt statement for that manual test.
+
+At the owner's request the loopback servers were stopped, discarding the
+in-memory session, and the temporary website integration was removed. The old
+test URL is inactive. Reusable adapter code stays in this repository. No new
+send is authorized. Full evidence and cleanup boundaries:
+`docs/milestones/2026-10-28-local-threads-dm.md`.
+
+### E4-NODE-20261028 — direct Node send and independent receipt
+
+**VERIFIED for this single controlled delivery.** The owner reviewed a distinct
+exact unsent Node preview, authorized it once from controlled A to B, and
+independently reported B receipt after the test. Session 18158 called the actual
+`ThreadsTextSendAttempt.send()` once. It returned a validated acknowledgement;
+the helper reported `requestCount: 1`, `acknowledgementAccepted: true`,
+`automaticRetry: false`, and no credential storage. No UI Send click was used.
+The acknowledgement check requires HTTP 200 and matching thread, messaging
+sender, fresh offline ID, text, message ID and timestamp. The helper's separate
+`httpStatus` field is null on success because it only records failed attempts;
+it does not mean the successful HTTP status was unknown.
+
+Preparation kept session material in memory, verified the owner through a fresh
+browser setup request, and reused the reproduced scoped message query in Node.
+The messaging sender was bound to the latest confirmed UI marker; the send form
+used the observed operation/document ID and nine-variable shape. The original
+shared request fields came from the fresh session, not a credential export.
+Chrome remained open. Browser-closed sending was not tested.
+
+The exact Node preview was cleared after the attempt to prevent an accidental UI
+duplicate. Independent receipt was recorded, the controller stopped, and the
+owned tool session is no longer available. No further message is authorized.
+No claim of duplicate safety, persisted attempt protection, production release,
+session renewal, media support or website send integration follows from this
+single result. No live test belongs in ordinary `pnpm test`.
+
+### Follow-up — request and acknowledgement recovered
+
+After fresh exact A→B one-draft approval, observer session 95410 clicked Send
+once. One scoped `WmiSlideTextMessageMutation` XHR returned HTTP 200, a nonempty
+`data.send_slide_text_message`, and no GraphQL errors. The owner independently
+reported B receipt. The approval is consumed. No Node send occurred in that run.
+
+**OBSERVED** variables: `text_body.sensitive_string_value` (string),
+`thread_fbid` and `offline_threading_id` (strings), `send_silently` (boolean),
+and null `recipient_fbids`, `replied_to_message_id`, `forwarded_message_id`,
+`mentioned_users`, `logging_data`. Observed document ID: `28577421681940194`.
+
+The acknowledgement has string `message_id`, `timestamp_ms`, `content_type`
+(`TEXT`) and `as_micg_interface`. Its nested thread, offline ID and text matched
+the request; nested message ID and timestamp matched the outer acknowledgement.
+**The messaging sender ID differs from form `av`.** Do not equate these identity
+namespaces. This invalidated an assertion in the temporary Node-phase helper and
+ended that controller. Independent receipt remains confirmed. A second existing
+DevTools client recovered the captured request/response in memory and checked
+these equalities without printing private values. No additional send was needed.
+
+`src/threads-dm-send.ts` now implements an experimental one-attempt text sender
+from this observed shape. It fixes the captured conversation, requires the
+observed messaging sender, generates a new 63-bit offline ID, validates the full
+acknowledgement echo and never retries. Any attempted request with an invalid or
+missing acknowledgement has unknown delivery status. Synthetic tests cover
+concurrency, consumed attempts, mismatched echoes and sanitized failures.
+Typecheck, 30 tests and build passed at that stage. The subsequent Node result is
+recorded above.
+
+The older checkpoint below predates this follow-up and does not describe the
+now-recovered request/acknowledgement evidence.
+
+The owner confirms that controlled Account B received the exact approved message.
+The latest one-message authorization is consumed; no retry or additional message
+is authorized. **VERIFIED:** owner-reported receiving-account delivery. The
+latest statement alone does not establish duplicate count, UI versus Node
+transport, or protocol acknowledgement; do not upgrade those claims from receipt.
+
+The previous observer tool session 71930 is unavailable (`Unknown process id`).
+Its in-memory capture cannot be recovered through that session. A temporary
+Node-phase helper exists outside Git, but its required repository module
+`src/threads-dm-send.ts` is absent. No successful standalone Node send result
+was available to verify during this checkpoint. Preserve that evidence gap;
+never replay the consumed send to reconstruct it. See `docs/agent-handoff.md`.
+
+## E8 — Private website route stack with live controlled reads (2026-10-28)
+
+Scope: owner's already-authenticated remote-debugging Chrome and the previously
+agreed test conversation. The owner authorized website wiring and clarified that
+Tailscale allows only their devices; no extra password prompt was added.
+
+Observed defect: the earlier parser expected a string at wire `content`, while
+both the historical controlled capture and current response wrap text in
+`content.text_body`. The live adapter rejected the response. Version 0.1.1 fixes
+that mapping, corrects the synthetic fixture and adds unsupported-content checks.
+
+Final path: compiled private Next GET handler → Fastify injection → Node fetch
+of the two reproduced read queries. Compared the allowlisted inbox and agreed
+chat against fresh browser baselines, holding all private material in memory.
+One allowed conversation and six messages matched, including ordered message
+IDs, senders, timestamps, text and page info. A disallowed conversation returned
+404 without another provider read. Chrome stayed open. Zero messages sent.
+
+Result: **REPRODUCED** local website read stack with live controlled data.
+This was not a request through a deployed website or the actual Tailscale path.
+No session values were saved or provisioned to the normal website process.
+Production deployment, live device-access rejection and runtime provisioning
+remain pending. Offline checks: 26 adapter tests, website synthetic route/config/
+proxy tests, typechecks/builds and production dependency bundle checks passed.
 
 ## E0 — Public browser/tool readiness (performed)
 

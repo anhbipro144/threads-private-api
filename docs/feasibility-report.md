@@ -1,12 +1,20 @@
 # Feasibility report
 
+**Milestone update:** the owner successfully tested the local read/send app and
+requested retirement of the website prototype. That code and runtime are removed
+from `tiemdosime-bot`; reusable adapter code and evidence remain here. See
+[the milestone](milestones/2026-10-28-local-threads-dm.md). This technical acceptance
+does not change the production compatibility assessment below.
+
 Assessment date: 2026-10-28. **Verdict: CONDITIONAL GO for a read-only, owner-only
 display release (pending the owner's platform-terms confirmation); NO-GO for a
-standalone Node send path and for a complete messaging SDK.** Browser-independent
+production standalone Node sending and for a complete messaging SDK.** Browser-independent
 inbox/message reads are demonstrated and now implemented as a read-only adapter.
 Two authorized UI DMs were each confirmed received once, and the send wire
-operation is now observed (a GraphQL mutation) and mapped statically — but not
-reproduced in Node, which is gated on the platform-compliance assessment below.
+operation is now observed (a GraphQL mutation). Subsequent controlled research
+captured its request/acknowledgement and verified one separately approved direct
+Node text send through validated acknowledgement and independent B receipt.
+That technical result does not clear the production assessment below.
 Incoming synchronization, expiry and recovery remain unverified.
 
 ## Tool readiness
@@ -42,10 +50,10 @@ and unavailable optional engines.
 | Required auth headers/cookies/CSRF | Observed fields replayed in memory; minimum set, expiry and renewal untested |
 | Conversations / pagination | Two thread IDs matched a fresh browser baseline; cursor fields observed, page traversal untested |
 | Messages / identifiers / ordering | Three ordered message IDs, senders, timestamps and content matched a fresh browser baseline |
-| Controlled sends / acknowledgements | Two exact A→B drafts authorized and clicked once each, each independently confirmed received once. Second send's wire op observed: GraphQL mutation `WmiSlideTextMessageMutation` POST to `/api/graphql` (not WebSocket). Variables/response mapped statically. Wire acknowledgement detail and Node send unverified |
+| Controlled sends / acknowledgements | Earlier UI deliveries confirmed. A later approved UI observation captured the actual GraphQL request and acknowledgement; another separately approved direct Node attempt issued one request, validated the echoed thread/sender/offline ID/text/message ID/timestamp, and was independently confirmed received on B. Both approvals consumed; duplicate handling remains untested |
 | Incoming transport | Unknown; no WebSocket/polling/SSE claim |
 | Expiry / errors / restart recovery | Token changed after reload; error envelope 1357054 observed during diagnosis; expiry/recovery untested |
-| Static analysis | A bounded public messaging bundle was analyzed with REA; partial graph, send path unresolved |
+| Static analysis | A bounded public messaging bundle was analyzed with REA; partial graph. Live observation subsequently established the text-send request and acknowledgement |
 
 Existing implementation research found public-content clients and historical
 GraphQL/mobile notes, plus Instagram Direct implementations. None of the inspected
@@ -67,35 +75,34 @@ have not been established. The owner explicitly selected the running Chrome
 session for this run. Session headers were transferred only in memory; private
 traffic remains outside Git. No identifiers or message text enter tracked findings.
 
-Sending and synchronization SDK methods would still encode unverified semantics.
-Consequently
-the repository contains a status export, tooling-verification code and a
-deterministic verifier test; it has no DM client, fake endpoints, browser transport
-fallback, DM fixtures, or automatically running live tests.
+The source now exports the read adapter and a narrowly scoped single-attempt text
+sender, with synthetic tests. Sending fixes the captured conversation, validates
+the acknowledgement and never retries. Restart recovery, server deduplication and
+synchronization remain unverified; ordinary checks never contact Threads.
 
 ## Recommendation and next decision
 
 E1–E3 read reproduction passed; expiry and pagination portions remain open.
-One exact-draft UI send and independent receipt are now confirmed. Do not send
-again under that exhausted one-message authorization. Further send-protocol
-research needs a new exact approval; inspect the actual transport before a Node
-send implementation. Then investigate incoming synchronization and
+One separately approved direct Node text send and independent B receipt are now
+confirmed. Do not send again under any exhausted authorization. Next prepare
+local website send wiring within repository boundaries, then investigate incoming synchronization and
 safe expiry/restart recovery. Reassess GO only on independent core-operation
 evidence; use CONDITIONAL GO only if working operations have explicit material
 limitations. Do not initiate mobile analysis merely to route around absent login.
 
-Do not integrate Shop-AI now. If the gate passes, release a versioned standalone
-package and implement an explicit provider adapter with isolated identities,
-scoped message IDs and capability-aware inbox actions. The design in
-shop-ai-integration.md is based on current read-only source inspection.
+The owner explicitly approved a simple local website prototype. Read wiring and
+draft/send POST routes now consume pinned 0.2.0. Synthetic route/proxy checks and
+the complete local HTTP chain pass; a live website-send result and product screen
+remain pending. Production rollout is paused. Identity scope and unknown delivery
+outcomes remain explicit, with no uncertain-send retry.
 
 Private protocol changes and account restrictions remain deployment risks.
 Review current platform terms and operational account rules before deployment.
 
-## Read-only website display option (design only, not implemented)
+## Historical read-only website display design
 
-The only capability with REPRODUCED evidence is reading the owner's inbox and one
-conversation, so a display-only first release is the smallest defensible scope.
+This earlier design predates the implemented read adapter and controlled Node
+send result. It records the original display-only proposal, not current status.
 
 - **Shape:** a server-side Node module with two calls, `listThreads()` →
   `BarcelonaMessagesThreadListMailboxQuery` and `listMessages(threadId)` →
@@ -116,6 +123,16 @@ conversation, so a display-only first release is the smallest defensible scope.
   scope until the send wire operation is observed under a new exact approval.
 
 ## Platform-compliance assessment
+
+**Scope update, 2026-10-28:** the owner subsequently asked to tackle sending next
+and pause read-only deployment. Controlled local send research is now requested;
+each actual message still needs fresh exact sender/recipient/content/count
+approval. Observe the genuine request and acknowledgement before building a
+sender, and never retry an uncertain send. This research authorization does not
+establish platform permission or production readiness. The production release
+gate and unresolved terms/enforcement risks below remain in effect. The earlier
+read-only scope and blanket deferral of Node experiments are superseded for this
+narrow controlled research, not for shipping an unverified send capability.
 
 This is an engineering risk assessment for the owner's own use, not legal advice.
 It is the explicit gate the sections above defer to; confirm current Meta/Threads
@@ -156,8 +173,9 @@ terms permit it (or an official channel appearing).
 **Compliance verdict.** CONDITIONAL GO for a **read-only, owner-only, on-demand**
 display of the owner's own inbox at low volume, contingent on the owner confirming
 current platform terms permit it and accepting the account-enforcement risk.
-**NO-GO for a standalone Node send path** until that terms review is positive; the
-send mechanism is documented for that future decision but deliberately not built.
+**NO-GO for production standalone Node sending** until that terms review is
+positive. The controlled local one-attempt implementation and successful test
+do not establish platform permission or production readiness.
 
 ## Definition-of-done audit
 
@@ -172,8 +190,8 @@ send mechanism is documented for that future decision but deliberately not built
 - [x] Authenticated mechanism investigated beyond the login screen.
 - [x] Standalone conversations and messages reproduced with Chrome closed and matched to browser baselines.
 - [x] Two authorized UI sends each independently confirmed received exactly once.
-- [x] Send wire operation observed (GraphQL mutation; variables/response mapped statically).
-- [ ] Send reproduced in Node (deferred pending platform-compliance review; see below).
+- [x] Send request and acknowledgement observed (GraphQL mutation; messaging sender differs from form actor).
+- [x] One controlled direct Node text send, validated acknowledgement and independent B receipt.
 - [ ] Incoming synchronization and session/restart recovery tested.
 - [ ] Browser-independent SDK and its protocol/unit/opt-in live tests implemented.
 

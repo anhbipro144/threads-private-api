@@ -1,10 +1,10 @@
 # Absolute paths intentionally select this repository's pinned Node runtime.
-# This shadows the inherited autoConnect registration without editing global config.
+# Attach to the owner's running remote-debugging Chrome; never launch a second browser.
 [mcp_servers.chrome-devtools]
 command = "/Users/admin/persona/hustle/threads-private-api/node_modules/node/bin/node"
 args = [
   "/Users/admin/persona/hustle/threads-private-api/node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js",
-  "--isolated",
+  "--autoConnect",
   "--redact-network-headers",
   "--no-usage-statistics",
   "--no-performance-crux"

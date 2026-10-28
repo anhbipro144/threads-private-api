@@ -3,17 +3,19 @@
 Evidence cut-off: 2026-10-28. Authenticated inbox and selected-conversation
 GraphQL reads have been reproduced in Node with Chrome closed and DevTools
 disconnected. Two authorized UI DMs were each independently confirmed received once. The
-second send's wire operation was observed as a GraphQL mutation; standalone
-(Node) sending remains unverified.
+second send's wire operation was observed as a GraphQL mutation. A subsequent
+approved send captured the actual request and acknowledgement, with independent
+B receipt. One separately approved direct Node text send validated the full
+acknowledgement and was independently confirmed received on B, with Chrome open.
 
 | Capability | Endpoint/operation | Auth / fields / decoding | Confidence |
 | --- | --- | --- | --- |
 | Public landing | Browser navigation to https://www.threads.com/ | No owner session; login prompt visible | OBSERVED (E0) |
 | Session verification | Signed-in browser UI and successful standalone reads | Cookie, x-csrftoken, x-fb-lsd and request-token fields present; necessity, expiry and renewal untested | REPRODUCED (E1 partial) |
 | List conversations | POST https://www.threads.com/api/graphql; BarcelonaMessagesThreadListMailboxQuery | Variables include folder and device_id_for_iris_subscription; data.get_slide_mailbox_for_iris_subscription.threads_by_folder has edges and page_info | REPRODUCED (E2) |
-| Read messages | Same endpoint; BarcelonaMessageListContainerQuery | Variables include thread_fbid and min_uq_seq_id; data.get_slide_thread.messages has edges, cursors and page_info; node.as_micg_interface includes message_id, thread_fbid, sender_fbid, timestamp_ms and content | REPRODUCED (E3) |
+| Read messages | Same endpoint; BarcelonaMessageListContainerQuery | Variables include thread_fbid and min_uq_seq_id; data.get_slide_thread.messages has edges, cursors and page_info; node.as_micg_interface includes message_id, thread_fbid, sender_fbid, timestamp_ms and content.text_body (text is wrapped in an object) | REPRODUCED (E3) |
 | Fetch selected thread | Same endpoint; WmiSlideAsyncFetchAndInsertThreadQuery | Thread metadata, members and message edges; necessity and side effects not independently established | OBSERVED |
-| Send message | POST https://www.threads.com/api/graphql; `WmiSlideTextMessageMutation` (Relay doc id `28577421681940194` in the public asset, SHA-256 `e4816be35fe8…`) | Static variables: `thread_fbid`, `text_body: {sensitive_string_value}`, `offline_threading_id`, `send_silently` (default false), optional `replied_to_message_id`, `forwarded_message_id`, `mentioned_users[{id,offset,length}]`, `logging_data`, `recipient_fbids`. Response field `data.send_slide_text_message` with `message_id`, `timestamp_ms`. `offline_threading_id` is 63-bit (ms timestamp ‖ 22 random bits). Client code shows no retry (`executeMessageSend` disposes the optimistic row and rethrows); server-side dedupe on `offline_threading_id` is unknown | Wire op OBSERVED once (name + endpoint, ~260 ms after the click; payload not read); two UI sends VERIFIED received once on B; variables/response HYPOTHESIS (static); Node send not attempted |
+| Send message | POST https://www.threads.com/api/graphql; `WmiSlideTextMessageMutation`, observed Relay doc id `28577421681940194` | Observed variables: `thread_fbid`, `text_body: {sensitive_string_value}`, `offline_threading_id`, `send_silently: false`; null `recipient_fbids`, `replied_to_message_id`, `forwarded_message_id`, `mentioned_users`, `logging_data`. Response `data.send_slide_text_message`: `message_id`, `timestamp_ms`, `content_type: TEXT`, nested `as_micg_interface`. Nested thread/offline ID/text echo the request; message ID/timestamp echo the outer response. **Messaging sender differs from form `av`.** Static offline ID format: 63-bit (ms timestamp ‖ 22 random bits). Server dedupe is unknown; never retry | REPRODUCED in Node; VERIFIED one separately approved direct Node delivery and independent B receipt, Chrome open; duplicate/restart safety unverified |
 | Incoming synchronization | Static: `WmiSync` Iris deltas, subscription `slide_gql` using `SlideUQPPDeltasQuery` doc id, keyed by `MqttWebDeviceID` | Stream transport and framing not observed | HYPOTHESIS (static only) |
 | Recovery | Unknown | Session renewal and sync checkpoint semantics unknown | HYPOTHESIS |
 
