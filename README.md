@@ -1,12 +1,19 @@
 # Threads private messaging research
 
+Latest continuation notes: [agent handoff](docs/agent-handoff.md).
+
 Independent TypeScript research repository; no Shop-AI code is modified.
 
-**Current state (2026-10-27): setup verified, authenticated research blocked.**
-Isolated Chrome MCP passed all six requested tools. REA MCP initialized and a
-read-only tool passed. Four matching project-local skills are installed. No
-Threads DM endpoint, authenticated session, or browser-independent DM operation
-has been verified. There is deliberately no SDK yet; `src/index.ts` exports only
+**Current state (2026-10-28): standalone inbox and message reads reproduced.**
+Node retrieved two inbox threads and three messages in the agreed test
+conversation with Chrome closed and DevTools disconnected. IDs, ordering,
+senders, timestamps and content matched fresh browser baselines in memory.
+One explicitly authorized UI test DM was independently confirmed received once
+on the second controlled account. Its send protocol and standalone sending remain
+unverified. Both MCP servers respond. A project-scoped SDK setting resolves
+REA's Swift compiler/SDK mismatch; reconnect the running REA MCP server to use it.
+Four matching project-local skills are installed. There is no SDK yet;
+`src/index.ts` exports only
 a research-status marker. This project is private and cannot be published by accident.
 
 ## Setup
@@ -39,13 +46,56 @@ MCP commands use absolute paths for this machine. Update both entries in
 3. Use `list_pages`, then navigate the isolated browser to `https://www.threads.com/`.
    Have the owner sign in to a controlled test account. Do not provide credentials
    to the agent. Keep another owner-controlled test account available separately.
-4. Start E1–E3 in [experiments](docs/experiments.md). Export no raw traffic into Git.
-5. Reproduce authenticated read operations with Chrome closed. Request explicit
-   recipient-specific authorization before E4 sends. Never retry an uncertain send.
+4. Review the successful E1–E3 records in [experiments](docs/experiments.md).
+   Session fields expire; obtain fresh owner-authorized session material and
+   keep it outside Git. The successful probe held session headers only in memory.
+5. Diagnose reads while Chrome stays open. Once they work, take fresh browser
+   baselines, disconnect DevTools, close Chrome once, and run the final Node
+   comparison. Request exact sender/recipient/content/count authorization before
+   E4 sends. Never retry an uncertain send.
 
 The verification script closes its temporary browser on completion. It is not an
 interactive authenticated research session. Persistent research profiles require
 separate approval and must never be combined with `--isolated`.
+The owner explicitly requested attachment to the running Chrome for the recorded
+2026-10-28 run; this did not change the default isolated configuration. Chrome's
+per-instance debugging access must be checked after reopening it.
+
+## Read-only usage (owner's own inbox)
+
+Reads are the only reproduced capability; no send client is exported. You capture
+the two read requests from your own signed-in browser (DevTools → the
+`BarcelonaMessagesThreadListMailboxQuery` and `BarcelonaMessageListContainerQuery`
+POSTs → copy request body and headers), then hand them to the adapter. Keep that
+material server-side; never commit it or send it to the browser.
+
+```ts
+import { ThreadsDmReader, ThreadsAuthRequiredError, sessionFromCapturedForms } from './src/index.ts';
+
+const reader = new ThreadsDmReader({
+  session: sessionFromCapturedForms({
+    threadListBody: process.env.THREAD_LIST_BODY!,   // captured form body
+    messageListBody: process.env.MESSAGE_LIST_BODY!, // captured form body
+    headers: JSON.parse(process.env.THREADS_HEADERS!),
+    cursorVariable: 'after', // the cursor variable name as it appears in YOUR capture
+  }),
+});
+
+try {
+  const { threads } = await reader.listThreads();
+  for await (const message of reader.allMessages(threads[0]!.id)) console.log(message.messageId);
+} catch (error) {
+  if (error instanceof ThreadsAuthRequiredError) console.error('reconnect your Threads account');
+  else throw error;
+}
+```
+
+Requests are serialized and spaced by `minIntervalMs` (default 5s, matching the
+read experiments) so the `all*` helpers cannot burst. Raise it, don't lower it.
+`ThreadsAuthRequiredError` means re-capture the
+session; never retry automatically or automate a login. Session lifetime, the
+minimum header set and a genuine expiry are untested, and the cursor variable name
+is not established by observation — supply the one in your capture.
 
 ## Results and boundaries
 
@@ -57,5 +107,6 @@ separate approval and must never be combined with `--isolated`.
 - [Scope and SDK acceptance gate](docs/specification.md)
 - [Mobile investigation decision](docs/mobile-findings.md)
 
-No GitHub remote is configured. No credentials, private messages, or raw captures
-were collected. Ordinary checks never contact Threads or send messages.
+No GitHub remote is configured. Private captures remain outside the repository;
+no credentials, identifiers or message contents are recorded in tracked findings.
+Ordinary checks never contact Threads or send messages.

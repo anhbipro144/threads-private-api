@@ -80,8 +80,37 @@ Codex conversation hot-loaded the project tools.
 The optional `pnpm verify:mcp chrome --threads-public` also navigated to Threads:
 origin `https://www.threads.com`, title `Threads`, loginVisible true, inboxVisible
 false. No cookies or page bodies were logged. No authenticated session existed.
-REA's JavaScript tools are advertised, but no DM-specific bundle analysis has
-been performed: the prerequisite observed DM code path is unavailable.
+At this initial checkpoint, no DM-specific bundle analysis had been performed.
+
+## REA Swift SDK fix — 2026-10-28
+
+The active REA server connected and its settings tool worked, but a provider
+helper failed to compile: installed Swift 6.3.3 selected a macOS 27 SDK built
+with Swift 6.4. The installed macOS 26.5 SDK compiled successfully with the same
+compiler. Setting `SDKROOT` for the REA process alone resolved the failure.
+
+The project-scoped `.codex/config.toml` now sets `SDKROOT` to
+`/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk` in `mcp_servers.rea.env`.
+Codex's resolved project configuration reports that value and the project-pinned
+Node/REA launcher. Global Codex settings, the Chrome entry and system toolchain
+were not changed. Reconnect the REA MCP server or restart this project session:
+an already-running server keeps its original environment. If the installed SDK
+changes or disappears, recheck compiler/SDK compatibility before updating this
+machine-specific project setting.
+
+Validation used both the pinned REA CLI and an actual newly launched, project-
+pinned REA MCP server. The CLI analyzed one previously downloaded public bundle;
+the MCP server analyzed the 744,266-character public messaging bundle that
+contains the observed read-query module names. The MCP analysis returned parent
+Evidence `ev_799d5c4f6ec7591e2009ecfe7f62fa8df52ad3aa7711faa32984bf23aa6dd24d`.
+The selected-source graph was partial and its semantic node/unknown limits were
+reached, so it does not prove any send transport or establish absence of one.
+The portable public-source Evidence bundle was exported outside this repository
+to `/private/tmp/rea-static-evidence.Hsy0EOZN/evidence.json` and verified as
+valid JSON containing the retained parent Evidence. Temporary paths may be
+removed by the operating system.
+The existing `pnpm verify:mcp rea` settings smoke test alone does not exercise
+this compiler-dependent analysis path.
 
 ## Skills and restart
 
