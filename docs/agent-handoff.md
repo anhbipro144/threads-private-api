@@ -4,7 +4,51 @@ Updated 2026-10-28. Repository: `/Users/admin/persona/hustle/threads-private-api
 Canonical resumable state. Detailed records: `docs/experiments.md`,
 `docs/protocol-map.md`, `docs/research-log.md`, `docs/feasibility-report.md`, `README.md`.
 
-## Current work — session reconnect and durable send status recovery
+## Current work — older messages and incoming read reproduced
+
+User requested a commit and continuation. Local commit **91393b4** contains the
+adapter, milestone, session lifecycle and durable send status work (26 reviewed
+files). Its checks passed: typecheck, 51 tests and build. Nothing was pushed.
+
+The following checkpoint now reproduces older-message pagination. Public
+client code identified a separate query; two one-message browser research reads
+and matching Node reads accepted the cursor and matched the initial ten-message
+baseline. The SDK initial/older-page methods also matched live browser results.
+No message sent. Pagination controller 26804 stopped and discarded credentials.
+
+Changes: `parseMessageList` accepts `fetch__SlideThread` or `get_slide_thread`,
+refuses ambiguous roots and can check expected thread before returning content.
+`sessionFromCapturedForms` accepts `messagePaginationBody`, binds it to the initial
+capture's conversation, preserves the Relay node ID/page size and rewrites only
+`after`. Message cursors without a separate capture and mailbox cursors without
+an observed variable name fail before dispatch; they no longer silently replay
+the initial page. Custom session callbacks still work. Checks: typecheck,
+**54 tests**, build pass. Evidence/setup: `docs/message-pagination.md`.
+
+Incoming static work is documented in `docs/incoming-research.md`: DGW/Lightspeed
+stream candidate, `slide_gql`, JSON envelope with base64/protobuf payload, and
+delta dispatch. The decoder is in a17.js; it was absent only from the earlier
+six-file subset. Static schemas do not establish active wire framing/auth,
+initial sequence/device state, deduplication or standalone push support.
+
+**Incoming observation completed:** after the owner reported one B→A test
+message, owned tool session **75591** reported exactly one new non-A message.
+The Node read matched a fresh browser read in memory, and the message was already
+visible in the UI before that research browser read. No scoped HTTP read
+operations were observed before the research read. The metadata observer recorded
+21 Lightspeed frames (19 one-byte frames, one 2281-byte and one 353-byte frame).
+Frame bodies were not collected/decoded, so this is correlation, not proof that
+a particular frame carried the message or a standalone push implementation.
+
+No agent message was sent. The one-shot check is consumed; `stop` completed with
+exit code 0, discarding in-memory private state. The controller's cleanup removes
+its observer and closes only its owned tab if no draft exists. No live controller
+remains. Chrome and the website were not restarted. Evidence:
+`docs/incoming-research.md`, E5-INCOMING-20261028 in `docs/experiments.md`.
+Next: resolve DGW wire framing/authentication and scoped delta decoding before
+implementing standalone push; do not guess subscription state or send again.
+
+## Implemented — session reconnect and durable send status recovery
 
 Implemented offline after the owner approved the next roadmap step. No live
 browser action, session invalidation or message send was performed; the website

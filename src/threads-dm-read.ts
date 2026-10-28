@@ -160,8 +160,9 @@ export function parseThreadList(data: Record<string, unknown>): ThreadListPage {
   return { threads, pageInfo: parsePageInfo(connection as Record<string, unknown>) };
 }
 
-export function parseMessageList(data: Record<string, unknown>): MessageListPage {
-  const thread = data['get_slide_thread'];
+export function parseMessageList(data: Record<string, unknown>, expectedThreadId?: string): MessageListPage {
+  if ('get_slide_thread' in data && 'fetch__SlideThread' in data) throw new Error('Threads read: ambiguous message roots');
+  const thread = data['get_slide_thread'] ?? data['fetch__SlideThread'];
   if (!isObject(thread)) throw new Error('Threads read: missing thread');
   const connection = thread['messages'];
   const messages = edges(connection, 'messages').map((edge, i) => {
@@ -170,11 +171,13 @@ export function parseMessageList(data: Record<string, unknown>): MessageListPage
     }
     const node = edge['node']['as_micg_interface'];
     if (!isObject(node)) throw new Error(`Threads read: message[${i}] has no as_micg_interface`);
+    const threadFbid = requireString(node['thread_fbid'], `message[${i}].thread_fbid`);
+    if (expectedThreadId !== undefined && threadFbid !== expectedThreadId) throw new Error('Threads read: unexpected conversation');
     const content = node['content'];
     if (!isObject(content)) throw new Error(`Threads read: message[${i}] has no text content object`);
     return {
       messageId: requireString(node['message_id'], `message[${i}].message_id`),
-      threadFbid: requireString(node['thread_fbid'], `message[${i}].thread_fbid`),
+      threadFbid,
       senderFbid: requireString(node['sender_fbid'], `message[${i}].sender_fbid`),
       timestampMs: requireString(node['timestamp_ms'], `message[${i}].timestamp_ms`),
       content: requireString(content['text_body'], `message[${i}].content.text_body`),
@@ -188,13 +191,14 @@ export interface CapturedForms {
   readonly threadListBody: string;
   /** Captured `BarcelonaMessageListContainerQuery` form body. */
   readonly messageListBody: string;
+  /** Observed BarcelonaMessageListPaginationQuery form for the initial capture's conversation. */
+  readonly messagePaginationBody?: string;
   /** Captured request headers (cookie, csrf, etc.). Held by the caller, never logged. */
   readonly headers: Readonly<Record<string, string>>;
   /**
-   * Name of the GraphQL variable carrying a forward cursor. NOT established by
-   * observation — the read queries' cursor variable was never exercised — so the
-   * caller must supply the name it sees in its own capture. Omit to disable
-   * cursor injection, which makes the `all*` helpers single-page.
+   * Caller-observed mailbox cursor variable; live inbox pagination is unverified.
+   * Message pagination instead uses the separately captured form's `after`.
+   * A requested mailbox cursor without this name fails before provider dispatch.
    */
   readonly cursorVariable?: string;
 }
@@ -203,13 +207,15 @@ export interface CapturedForms {
  * Builds a session from request bodies the owner captured from their own browser.
  *
  * The captured body is form-urlencoded with a JSON `variables` field; this rewrites
- * only `thread_fbid` (documented for the message query) and the caller-named cursor
- * variable, leaving every other captured field byte-identical. It parses the
+ * only `thread_fbid` for initial reads, or `after` on the distinct observed message
+ * pagination form. The pagination form's Relay node `id` is never rewritten.
+ * Mailbox cursors remain caller-named. Other captured fields are preserved. It parses the
  * owner's own material and performs no capture itself.
  */
 export function sessionFromCapturedForms(capture: CapturedForms): ThreadsDmReadSession {
-  const rebuild = (body: string, changes: Readonly<Record<string, string | undefined>>): string => {
+  const unpack = (body: string): { form: URLSearchParams; variables: Record<string, unknown> } => {
     const form = new URLSearchParams(body);
+    if (form.getAll('variables').length > 1) throw new Error('Threads read: captured variables field is ambiguous');
     const raw = form.get('variables');
     if (raw === null) throw new Error('Threads read: captured body has no variables field');
     let variables: unknown;
@@ -218,24 +224,52 @@ export function sessionFromCapturedForms(capture: CapturedForms): ThreadsDmReadS
     } catch {
       throw new Error('Threads read: captured variables is not valid JSON');
     }
-    if (!isObject(variables)) throw new Error('Threads read: captured variables is not an object');
+    if (!isObject(variables) || Array.isArray(variables)) throw new Error('Threads read: captured variables is not an object');
+    return { form, variables };
+  };
+  const rebuild = (body: string, changes: Readonly<Record<string, string | undefined>>): string => {
+    const { form, variables } = unpack(body);
     for (const [key, value] of Object.entries(changes)) {
       if (value !== undefined) variables[key] = value;
     }
     form.set('variables', JSON.stringify(variables));
     return form.toString();
   };
-  const cursorChange = (cursor: string | undefined): Record<string, string | undefined> =>
-    capture.cursorVariable !== undefined && cursor !== undefined ? { [capture.cursorVariable]: cursor } : {};
+  const cursorChange = (cursor: string | undefined): Record<string, string> => {
+    if (cursor === undefined) return {};
+    if (!capture.cursorVariable) throw new Error('Threads read: captured mailbox cursor variable required');
+    return { [capture.cursorVariable]: cursor };
+  };
   return {
     listThreads: (cursor) => ({
       body: rebuild(capture.threadListBody, cursorChange(cursor)),
       headers: capture.headers,
     }),
-    listMessages: (threadId, cursor) => ({
-      body: rebuild(capture.messageListBody, { thread_fbid: threadId, ...cursorChange(cursor) }),
-      headers: capture.headers,
-    }),
+    listMessages: (threadId, cursor) => {
+      if (cursor === undefined) return {
+        body: rebuild(capture.messageListBody, { thread_fbid: threadId }), headers: capture.headers,
+      };
+      if (!capture.messagePaginationBody) throw new Error('Threads read: captured message pagination form required');
+      if (!cursor) throw new Error('Threads read: message cursor must be nonempty');
+      const initial = unpack(capture.messageListBody);
+      const pagination = unpack(capture.messagePaginationBody);
+      const first = pagination.variables['first'];
+      if (initial.variables['thread_fbid'] !== threadId ||
+          pagination.form.getAll('fb_api_req_friendly_name').length !== 1 ||
+          pagination.form.get('fb_api_req_friendly_name') !== 'BarcelonaMessageListPaginationQuery' ||
+          pagination.form.getAll('doc_id').length !== 1 || !/^\d+$/.test(pagination.form.get('doc_id') ?? '') ||
+          (initial.form.has('av') && pagination.form.get('av') !== initial.form.get('av')) ||
+          typeof pagination.variables['id'] !== 'string' || !pagination.variables['id'] ||
+          typeof first !== 'number' || !Number.isSafeInteger(first) || first < 1 ||
+          pagination.variables['before'] != null || pagination.variables['last'] != null ||
+          !('after' in pagination.variables) || 'thread_fbid' in pagination.variables) {
+        throw new Error('Threads read: pagination capture must match the initial conversation and observed query');
+      }
+      return {
+        body: rebuild(capture.messagePaginationBody, { after: cursor }),
+        headers: { ...capture.headers, 'x-fb-friendly-name': 'BarcelonaMessageListPaginationQuery' },
+      };
+    },
   };
 }
 
@@ -328,7 +362,7 @@ export class ThreadsDmReader {
   }
 
   async listMessages(threadId: string, cursor?: string): Promise<MessageListPage> {
-    return parseMessageList(await this.#read(session => session.listMessages(threadId, cursor)));
+    return parseMessageList(await this.#read(session => session.listMessages(threadId, cursor)), threadId);
   }
 
   /** Yields every conversation, following `page_info` cursors on demand. */

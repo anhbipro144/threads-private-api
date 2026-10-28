@@ -30,6 +30,53 @@ and independently confirmed exactly one receipt on B.
 
 ## Latest sending receipt checkpoint (2026-10-28)
 
+### E5-INCOMING-20261028 — one controlled incoming message
+
+Hypothesis: an owner-performed B→A message appears in the browser and is readable
+through the reproduced Node query; metadata may correlate arrival with a stream.
+The owner reviewed/sent one unique plain-text message in the agreed chat and
+reported sent. The agent sent nothing and performed no additional send action.
+
+Observer session 75591 had attached through autoConnect, checked owner/chat scope
+and retained a ten-message baseline in memory. Its one-shot check found exactly
+one new non-A message in Node, matched the fresh browser read, and confirmed the
+message was visible in the UI before that research browser read. Chrome stayed
+open. No scoped HTTP operation was observed before the research read.
+
+The metadata-only observer recorded 21 Lightspeed frames: 19 of one byte, one of
+2281 bytes and one of 353 bytes. Bodies were not captured or decoded; these
+sizes do not establish frame semantics or which frame carried the message.
+Confidence: **REPRODUCED** for incoming-message retrieval in Node and comparison;
+**OBSERVED** for prior UI visibility and correlated stream metadata. Standalone
+push, reconnect, sequence handling and deduplication remain unverified.
+
+The check was consumed and the controller stopped with exit code 0. Cleanup
+discards private state and closes its owned tab only if draft-free. No secrets,
+account identifiers or message contents were saved. No further send authorized.
+See `docs/incoming-research.md` for static candidates and remaining work.
+
+### E10-PAGINATION-20261028 — controlled older-page reads
+
+Hypothesis from public client code: message pagination uses a distinct query,
+Relay node ID and response root, rather than injecting a cursor into the initial
+message query. Scoped to the same controlled owner and agreed conversation.
+
+Fresh initial Node baseline: ten messages and an observed SlideThread node ID.
+The normal initial query has a fixed 20-message selection, so no older UI scroll
+was available. Research browser requests used the actual persisted pagination
+query with first=1: one first page, then one older page via its end_cursor.
+Each was reproduced once in Node, at least five seconds between experiments,
+and matched in-memory IDs/senders/timestamps/text/page information. Concatenated
+page messages matched the first two initial-baseline messages; no duplicates.
+Chrome stayed open. No extra messages were created and no send was performed.
+
+The updated SDK then reproduced an initial read and an older-page request,
+matching the browser baseline. Confidence: **REPRODUCED** for these bounded reads.
+Default-size UI pagination, mailbox pagination, the opposite direction and live
+automatic full-history traversal remain unverified. Actual forms/cursors/node IDs
+and credentials stayed in memory and were discarded when the controller stopped.
+See `docs/message-pagination.md` for operation/shape/provenance and API changes.
+
 ### Owner-tested local website milestone and retirement
 
 The owner manually tested the live local application and reported success.

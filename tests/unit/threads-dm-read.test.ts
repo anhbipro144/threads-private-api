@@ -119,9 +119,11 @@ test('ThreadsDmReader.listThreads replays the request and parses', async () => {
 
 test('ThreadsDmReader.listMessages injects the thread id', async () => {
   let calledWith: string | undefined;
+  const response = structuredClone(messageListData);
+  response.get_slide_thread.messages.edges[0]!.node.as_micg_interface.thread_fbid = 'thread-42';
   await reader(async (_url, init) => {
     calledWith = String(init?.body);
-    return jsonResponse({ data: messageListData });
+    return jsonResponse({ data: response });
   }).listMessages('thread-42');
   assert.equal(calledWith, 'thread=thread-42');
 });
@@ -309,26 +311,77 @@ const capture = {
   cursorVariable: 'after',
 };
 
-test('sessionFromCapturedForms injects thread id and cursor, preserving other fields', () => {
+test('sessionFromCapturedForms injects initial thread ID and only caller-named mailbox cursors', () => {
   const session = sessionFromCapturedForms(capture);
-  const messages = new URLSearchParams(session.listMessages('NEW', 'CUR').body);
+  const messages = new URLSearchParams(session.listMessages('NEW').body);
   assert.deepEqual(JSON.parse(messages.get('variables')!), {
     thread_fbid: 'NEW',
     min_uq_seq_id: null,
-    after: 'CUR',
   });
   assert.equal(messages.get('fb_dtsg'), 'TOKEN'); // untouched captured fields survive
   assert.equal(messages.get('doc_id'), '2');
 
-  const threads = new URLSearchParams(session.listThreads().body);
-  assert.deepEqual(JSON.parse(threads.get('variables')!), { folder: 'inbox' });
+  const threads = new URLSearchParams(session.listThreads('CUR').body);
+  assert.deepEqual(JSON.parse(threads.get('variables')!), { folder: 'inbox', after: 'CUR' });
 });
 
-test('sessionFromCapturedForms omits the cursor when no variable name is given', () => {
+test('missing cursor/pagination capture fails instead of replaying the initial page', () => {
   const { cursorVariable: _omitted, ...noCursor } = capture;
   const session = sessionFromCapturedForms(noCursor);
-  const body = new URLSearchParams(session.listThreads('CUR').body);
+  assert.throws(() => session.listThreads('CUR'), /mailbox cursor variable required/);
+  assert.throws(() => session.listMessages('OLD', 'CUR'), /message pagination form required/);
+  const body = new URLSearchParams(session.listThreads().body);
   assert.deepEqual(JSON.parse(body.get('variables')!), { folder: 'inbox' });
+});
+
+test('message pagination preserves the observed Relay node ID, page size and operation', () => {
+  const messagePaginationBody = new URLSearchParams({ doc_id: '3', fb_dtsg: 'SYNTHETIC',
+    fb_api_req_friendly_name: 'BarcelonaMessageListPaginationQuery', variables: JSON.stringify({
+      id: 'relay-node-for-old', first: 1, after: null, before: null, last: null, has_live_chats: false,
+    }),
+  }).toString();
+  const session = sessionFromCapturedForms({ ...capture, messagePaginationBody });
+  const form = new URLSearchParams(session.listMessages('OLD', 'OLDER-CURSOR').body);
+  assert.equal(form.get('doc_id'), '3');
+  assert.equal(form.get('fb_dtsg'), 'SYNTHETIC');
+  assert.deepEqual(JSON.parse(form.get('variables')!), {
+    id: 'relay-node-for-old', first: 1, after: 'OLDER-CURSOR', before: null, last: null, has_live_chats: false,
+  });
+  assert.equal(session.listMessages('OLD', 'OLDER-CURSOR').headers['x-fb-friendly-name'], 'BarcelonaMessageListPaginationQuery');
+  assert.throws(() => session.listMessages('OTHER', 'CUR'), /initial conversation/);
+  assert.throws(() => sessionFromCapturedForms({ ...capture, messagePaginationBody: capture.messageListBody }).listMessages('OLD', 'CUR'), /observed query/);
+});
+
+test('both observed message roots parse, while ambiguous or wrong-conversation responses fail closed', () => {
+  const paginated = { fetch__SlideThread: structuredClone(messageListData.get_slide_thread) };
+  assert.deepEqual(parseMessageList(paginated, 'thread-1'), parseMessageList(messageListData, 'thread-1'));
+  assert.throws(() => parseMessageList({ ...messageListData, ...paginated }), /ambiguous/);
+  assert.throws(() => parseMessageList(paginated, 'other-thread'), /unexpected conversation/);
+});
+
+test('allMessages switches captured query/root for the next page and stops at the end', async () => {
+  const initial = structuredClone(messageListData);
+  Object.assign(initial.get_slide_thread.messages.page_info, { has_next_page: true, end_cursor: 'NEXT' });
+  const older = structuredClone(messageListData.get_slide_thread);
+  older.messages.edges[0]!.node.as_micg_interface.message_id = 'older-message';
+  const forms = { ...capture,
+    messageListBody: new URLSearchParams({ doc_id: '2', variables: JSON.stringify({ thread_fbid: 'thread-1' }) }).toString(),
+    messagePaginationBody: new URLSearchParams({ doc_id: '3', fb_api_req_friendly_name: 'BarcelonaMessageListPaginationQuery',
+      variables: JSON.stringify({ id: 'relay-node', after: null, first: 1 }),
+    }).toString(),
+  };
+  const operations: string[] = [];
+  const client = new ThreadsDmReader({ session: sessionFromCapturedForms(forms), minIntervalMs: 0, fetchImpl: async (_url, init) => {
+    const form = new URLSearchParams(String(init?.body));
+    operations.push(form.get('doc_id')!);
+    if (form.get('doc_id') === '2') return jsonResponse({ data: initial });
+    assert.deepEqual(JSON.parse(form.get('variables')!), { id: 'relay-node', after: 'NEXT', first: 1 });
+    return jsonResponse({ data: { fetch__SlideThread: older } });
+  } });
+  const ids: string[] = [];
+  for await (const message of client.allMessages('thread-1')) ids.push(message.messageId);
+  assert.deepEqual(ids, ['m-1', 'older-message']);
+  assert.deepEqual(operations, ['2', '3']);
 });
 
 test('sessionFromCapturedForms rejects a capture it cannot parse', () => {
@@ -340,4 +393,7 @@ test('sessionFromCapturedForms rejects a capture it cannot parse', () => {
     () => sessionFromCapturedForms({ ...capture, threadListBody: 'variables=notjson' }).listThreads(),
     /not valid JSON/,
   );
+  for (const threadListBody of ['variables=%5B%5D', 'variables=%7B%7D&variables=%7B%7D']) {
+    assert.throws(() => sessionFromCapturedForms({ ...capture, threadListBody }).listThreads(), /object|ambiguous/);
+  }
 });

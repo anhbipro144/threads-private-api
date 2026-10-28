@@ -88,7 +88,8 @@ const reader = new ThreadsDmReader({
     threadListBody: process.env.THREAD_LIST_BODY!,   // captured form body
     messageListBody: process.env.MESSAGE_LIST_BODY!, // captured form body
     headers: JSON.parse(process.env.THREADS_HEADERS!),
-    // Supply cursorVariable only after observing its name in your own capture.
+    // Optional: messagePaginationBody from this same conversation's observed older-page query.
+    // cursorVariable is only for a caller-observed mailbox cursor.
   }),
 });
 
@@ -109,13 +110,20 @@ Requests are serialized and spaced by `minIntervalMs` (default 5s, matching the
 read experiments) so the `all*` helpers cannot burst. Raise it, don't lower it.
 `ThreadsAuthRequiredError` means re-capture the
 session; never retry automatically or automate a login. Session lifetime, the
-minimum header set and a genuine expiry are untested, and the cursor variable name
-is not established by observation — supply the one in your capture. The example's
+minimum header set and a genuine expiry are untested. Message pagination uses a
+separate captured query and its observed `after` cursor; mailbox pagination is
+still unverified. The example's
 `agreedTestThreadId` must come from trusted server-side configuration.
 
 The observed text response wraps text in `content.text_body`; the reader returns
 that text as `DmMessage.content`. Version `0.1.1` fixes the earlier parser's
 incorrect plain-string assumption. Non-text content is currently rejected.
+
+Older-message pagination is now reproduced for two controlled one-message pages
+in the browser and Node. Supply `messagePaginationBody` for the same captured
+conversation; the helper preserves its Relay node ID and uses the pagination
+response root. Missing pagination configuration fails before dispatch instead
+of repeating a page. See [pagination evidence and setup](docs/message-pagination.md).
 
 ## Controlled text sending
 
