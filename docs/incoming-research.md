@@ -23,6 +23,13 @@ Next: establish actual DGW wire framing/authentication and valid subscription
 state, then decode only the agreed conversation's deltas. Do not implement a
 subscription from guessed cursors or treat repeated frames as duplicate messages.
 
+Static follow-up recovered the connection constructor and version-5 binary
+frame layout before the application envelope. The codec is present as compiled
+JavaScript in this artifact despite its WASM wrapper names. See
+[DGW wire research](dgw-wire-research.md) for fields, exact source offsets and
+remaining runtime checks; none of those static candidates is a verified server
+contract yet.
+
 ## Candidate stream and subscription
 
 `WmiSlideAppPlatform` → `WmiIgnitionInstance` → `WmiDGWLightspeedStream` uses

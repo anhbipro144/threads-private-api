@@ -48,6 +48,16 @@ remains. Chrome and the website were not restarted. Evidence:
 Next: resolve DGW wire framing/authentication and scoped delta decoding before
 implementing standalone push; do not guess subscription state or send again.
 
+After commit `c7edfe9` (pagination/incoming checkpoint, typecheck + 54 tests +
+build passed), static continuation recovered the DGW URL constructor, big-ID
+binary framing and initial-stream path. Findings/provenance:
+`docs/dgw-wire-research.md`. The codec is compiled JavaScript behind an
+Emscripten-style shim in this asset, not proven to require a separate WASM fetch.
+No downloaded code was executed, provider request made or new browser opened.
+Next bounded action: metadata-only frame classification; actual authentication,
+initial subscription state and scoped decoding remain unresolved. Do not request
+another message until the observer/decoder is ready. No SDK push code added.
+
 ## Implemented — session reconnect and durable send status recovery
 
 Implemented offline after the owner approved the next roadmap step. No live
