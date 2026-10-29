@@ -7,6 +7,14 @@ reproduced one compiled-SDK incoming delivery/callback matching a Node read with
 DevTools disconnected and the owned observation tab closed.
 See [SDK setup and limits](incoming-sdk.md). The research reproduction does not
 establish long-running production reliability for the extracted SDK.
+E5-SDK-SOAK-RECOVERY-20261029 additionally observed 900 seconds of idle readiness,
+recovered one message sent during a deliberate stop via a separate Node read, and
+accepted a fresh subscription with that message in the new baseline. Its final
+post-reconnect message check expired without a result. A separately approved new
+manual connection then received one NEW test message, one callback matching a
+separate Node read (E5-SDK-FRESH-RECONNECT-20261029). All receivers are stopped.
+The expired message remains unverified; no automatic recovery, provider duplicate
+guarantee or long-running production reliability is established.
 The static candidates below remain **HYPOTHESIS** where not established by the
 bounded runtime observation. Do not equate a text send's HTTP transport with
 incoming transport, or MQTT-looking legacy strings with the active browser path.

@@ -4,10 +4,74 @@ Updated 2026-10-29. Repository: `/Users/admin/persona/hustle/threads-private-api
 Canonical resumable state. Detailed records: `docs/experiments.md`,
 `docs/protocol-map.md`, `docs/research-log.md`, `docs/feasibility-report.md`, `README.md`.
 
-## Current work — compiled incoming SDK live test passed
+## Current work — fresh manual connection receive test passed
+
+**REPRODUCED one new incoming event after a fresh manual connection. All owned
+receivers stopped.** E5-SDK-FRESH-RECONNECT-20261029 used session **2154** and
+`/private/tmp/threads-dgw-sdk-validation.mjs` with a ten-minute action window.
+It imported the built SDK, verified controlled scope/owner, captured fresh setup
+and a baseline in memory, closed its owned observation tab and disconnected
+DevTools. After SDK readiness, the owner separately reviewed/sent exactly one
+NEW B→A message and reported sent. The old late-reported message was not resent.
+
+`check-incoming` ran once: one new SDK callback equaled one new message in a
+separate Node read, comparing ID/sender/time/text in memory. Sanitized metrics:
+`sdkIncomingMatchedNodeRead:true`, `sdkCallbackCount:1`, `usingBuiltPackage:true`,
+`newScopedMessages:1`, `devtoolsDisconnected:true`,
+`browserObservationTabClosed:true`, `messagesSentByAgent:0`,
+`credentialsSaved:false`. `stop` exited **0**, with no failure diagnostic; private
+state discarded. No new SDK code or additional offline test run for this step.
+
+This is a fresh manual connection following prior clean shutdown, not revival
+of the expired process or its discarded callbacks. The earlier expired message
+remains unverified for push. Its action and this separate new action/comparison
+are consumed; no further message or agent reply is authorized. One callback in
+this bounded run does not establish provider-wide exactly-once delivery. Chrome
+stayed open. Current aggregate evidence: 15-minute idle continuity, one manual
+gap-message recovery, fresh subscription, and a separate new incoming event after
+fresh manual connection. Genuine expiry/automatic reconnect/restart recovery,
+browser-closed push and long-running production reliability remain unverified.
+
+**All owned receivers stopped.** E5-SDK-SOAK-RECOVERY-20261029 used session **4000**
+and `/private/tmp/threads-dgw-sdk-soak.mjs` with built SDK code. Fresh controlled
+session/scope was captured in memory, its owned observation tab closed, and
+DevTools disconnected. The SDK stayed ready for **900 monotonic seconds**, with
+zero new message callbacks, no failures/reconnects, then stopped cleanly.
+
+After that stop, the owner reviewed/sent exactly one new B→A gap message.
+`read-gap` ran once: a separate Node read recovered exactly one new message.
+Fresh browser setup was captured and its new baseline contained the identical
+gap message in memory. A new SDK instance accepted the fresh subscription with
+baseline IDs seeded, DevTools disconnected and owned tab closed. Output:
+`gapReadRecovered:true`, `newGapMessages:1`, `sdkStoppedDuringGap:true`,
+`manualReconnectReady:true`, `gapMessageIncludedInBaseline:true`.
+
+A separately requested post-reconnect message was not reported before the
+five-minute window expired. The helper emitted `testExpired:true`, phase
+`post-reconnect-ready`, then stopped/exited **0** and discarded private state.
+`check-incoming` for this phase was never run. Local statuses before expiry had
+zero callbacks; there is no completed final message/deduplication comparison.
+The owner was told the receiver stopped and not to send the pending message now.
+The owner subsequently reported “sent.” The actual send time relative to expiry
+is unknown. The planned post-reconnect message action is therefore consumed, but
+no SDK callback/read comparison is available because private state was discarded.
+No repeat send, automatic retry or fresh provider read was performed. Do not ask
+the owner to resend that message or claim the post-reconnect test passed.
+Do not infer or re-create a delivery result if an action report arrives late.
+No replacement/extra message is authorized. A new live attempt needs fresh
+capture and a fresh exact reviewed action after readiness.
+
+Confidence: **OBSERVED** idle connection continuity and clean stop; **REPRODUCED**
+one manual gap-message recovery and fresh SDK subscription. Post-reconnect new
+message delivery and no-duplicate comparison remain **unverified** for this run.
+This is manual recovery with fresh setup, not automatic reconnect, genuine
+service expiry, load testing or power-loss recovery. No agent DM, forced logout,
+provider read polling, website integration, commit or deployment. Only docs
+changed; last offline checks remain 66 tests/typecheck/build passing. Previous
+implementation commit: `ba83fbe`.
 
 **REPRODUCED one incoming message through the compiled SDK. No live receiver is
-running.** E5-SDK-PUSH-20261029: tool session **64341** used
+running from that completed earlier test.** E5-SDK-PUSH-20261029: tool session **64341** used
 `/private/tmp/threads-dgw-sdk-validation.mjs`, importing `dist/index.js`. It
 verified the controlled owner, captured fresh setup/session in memory, took a
 scoped baseline, closed its owned observation tab and disconnected DevTools.
@@ -57,9 +121,11 @@ reported this repository unindexed; current source/callers were checked with `rg
 The subsequent compiled-SDK live result is recorded above. The owner requested
 a local commit of this checkpoint. No website change, push or deployment.
 
-**Next:** plan bounded long-running and manual reconnect/reconciliation
-validation. One successful event does not establish
-production reliability. Do not reuse terminated processes or consumed test messages.
+**Next:** review the documented results and plan website integration if the owner
+explicitly requests that new task. No more message is needed to finish this
+bounded test plan: the fresh-manual-connection receive check above passed. The
+15-minute idle and manual recovery results do not establish production reliability.
+Do not reuse terminated processes or consumed test messages.
 Any new live message needs fresh exact sender/recipient/content/count approval.
 Genuine expiry and recovery across restarts remain unverified. Website integration
 needs a separate new task; no deployment is authorized.

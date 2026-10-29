@@ -87,6 +87,14 @@ Validation covers chunk boundaries, setup correlation, stream IDs, malformed
 base64/protobuf and size bounds, scope filtering, local deduplication, callback
 failures, early/late stop and timeout cleanup. Default Node 24 headers support
 was exercised by both the earlier prototype and the bounded compiled-SDK live
-test. Browser-closed push, long-running use, genuine expiry and recovery remain
-unverified. A new live message requires fresh exact approval. Website
+test. A later bounded check held the idle connection ready for 900 seconds,
+then recovered one owner-sent gap message with a separate read and accepted a
+fresh manual subscription with that message included in its baseline. Its final
+post-reconnect message window expired without a completed delivery comparison.
+See E5-SDK-SOAK-RECOVERY-20261029. This is not automatic recovery or a long-running
+production guarantee. A separately approved fresh manual connection then received
+one NEW test event, with one callback matching a separate Node read; see
+E5-SDK-FRESH-RECONNECT-20261029. This new result does not resolve the earlier
+expired message's push status. Browser-closed push, genuine expiry and automatic
+recovery remain unverified. A new live message requires fresh exact approval. Website
 integration, deployment and platform compliance review remain separate work.

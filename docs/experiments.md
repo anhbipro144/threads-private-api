@@ -30,6 +30,75 @@ and independently confirmed exactly one receipt on B.
 
 ## Latest sending receipt checkpoint (2026-10-28)
 
+### E5-SDK-FRESH-RECONNECT-20261029 — fresh manual connection received a new message
+
+After the earlier bounded test expired, the owner explicitly opted into a new
+receive check without repeating the 15-minute wait. This is a separate experiment;
+no callback state or result from the expired process was reconstructed. The
+previous message was not resent. A new ten-minute response window was used.
+
+Session 2154 imported built `dist/index.js`, verified the same controlled owner,
+captured fresh exact setup/session and scoped baseline in memory, closed its
+owned observation tab and disconnected DevTools. A fresh `ThreadsDmIncoming`
+accepted its subscription following prior clean shutdown. After readiness, the
+owner independently chose/reviewed/sent exactly one NEW unique B→A text in the
+agreed chat and reported sent. No agent DM, auto-reply or send retry.
+
+One explicit `check-incoming` compared a single SDK event to the single new
+message returned by a separate Node read, with ID/sender/time/text matching in
+memory. Output: `sdkIncomingMatchedNodeRead:true`, `sdkCallbackCount:1`,
+`usingBuiltPackage:true`, `newScopedMessages:1`, `devtoolsDisconnected:true`,
+`browserObservationTabClosed:true`, `messagesSentByAgent:0`,
+`credentialsSaved:false`. The SDK stopped; controller exited 0 without a failure
+diagnostic and discarded private state. No message contents/IDs/session/frames
+saved. This new action/comparison is consumed; no further send authorized.
+
+Confidence: **REPRODUCED** one fresh-manual-connection incoming event and read
+comparison. This supplies the previously missing follow-up receive evidence,
+while the earlier expired message remains unverified. It is not automatic
+reconnection or a provider duplicate guarantee. Browser-closed push, genuine
+expiry, power-loss/restart reconciliation and production reliability remain
+unverified. SDK code unchanged; last checks remain 66 tests/typecheck/build pass.
+Only sanitized documentation changed; no commit, push, website or deployment.
+
+### E5-SDK-SOAK-RECOVERY-20261029 — idle listening and manual gap recovery
+
+Owner approved a 15-minute listening check followed by controlled stop/manual
+reconnection. Compiled `ThreadsDmIncoming` was prepared from fresh in-memory
+capture in existing autoConnect Chrome. Owner identity and chat scope checked;
+owned tab closed and DevTools disconnected before SDK listening.
+
+The SDK stayed ready for 900 monotonic seconds without failure/reconnection.
+Local status commands made no provider requests. Zero new message callbacks
+were observed during that idle interval. It stopped cleanly at the deadline.
+This establishes **OBSERVED** bounded idle continuity, not activity/load capacity.
+
+After the stop, the owner independently reviewed/sent one new unique B→A gap
+message and reported sent. A single explicit Node read recovered exactly one new
+message. Fresh Chrome setup and a fresh Node baseline were obtained; the baseline
+contained the identical gap message (compared privately in memory). A new SDK
+instance, seeded with those IDs, accepted the fresh subscription after its owned
+tab closed and DevTools disconnected. **REPRODUCED** one manual gap recovery and
+fresh subscription; this was not an automatic reconnect or forced session expiry.
+
+The separately requested final B→A post-reconnect message was not reported within
+the five-minute action window. Session 4000 emitted `testExpired:true` in phase
+`post-reconnect-ready`, stopped and exited 0. Its final `check-incoming` was never
+run. Local pre-expiry statuses showed zero callbacks, but no final message/read/
+duplicate comparison was completed. No claim of successful post-reconnect delivery
+follows from this run. Owner told not to send the expired pending test action.
+The owner later reported sent after the receiver stopped. Actual send timing is
+unknown; its planned one-message action is consumed. No retained callback state
+exists to compare, no replacement/retry was requested, and no further read was
+made. Post-reconnect push delivery remains unverified for this message.
+
+No agent DM or automatic reply, no stored private values/contents/frames, no
+login invalidation, no website/deployment/commit. Gap action/read consumed; any
+future message needs fresh exact approval and readiness. Helper source outside
+Git: `/private/tmp/threads-dgw-sdk-soak.mjs`; private runtime state discarded.
+Last code checks unchanged: 66 synthetic tests, typecheck, build pass. SDK code
+was unchanged by this experiment; documentation diff check passed.
+
 ### E5-SDK-PUSH-20261029 — compiled SDK incoming delivery passed
 
 The owner opted into a separate SDK live test. The private validation helper
