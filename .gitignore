@@ -1,5 +1,7 @@
 node_modules/
 dist/
+.artifacts/
+*.tgz
 .tools/
 .cache/
 .rea/

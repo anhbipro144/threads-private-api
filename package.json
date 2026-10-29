@@ -1,10 +1,18 @@
 {
   "name": "threads-private-api",
-  "version": "0.2.0",
+  "version": "0.3.0-beta.1",
   "private": true,
-  "description": "Evidence-led research into browser-independent Threads direct messaging",
+  "description": "Unofficial Node.js SDK for controlled Threads direct messaging",
+  "license": "UNLICENSED",
+  "repository": { "type": "git", "url": "git+https://github.com/anhbipro144/threads-private-api.git" },
+  "homepage": "https://github.com/anhbipro144/threads-private-api#readme",
+  "bugs": { "url": "https://github.com/anhbipro144/threads-private-api/issues" },
+  "keywords": ["threads", "direct-messages", "sdk", "typescript"],
   "type": "module",
-  "files": ["dist", "README.md"],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "files": ["dist", "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md", "docs/usage-guide", "docs/incoming-sdk.md", "docs/session-recovery.md", "docs/website-read-handler.md", "docs/website-send-handler.md", "examples"],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -12,11 +20,13 @@
     }
   },
   "engines": { "node": "^24.22.1" },
-  "packageManager": "pnpm@12.15.0",
+  "packageManager": "pnpm@10.28.2",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "node scripts/build.mjs",
     "test": "node --test tests/unit/*.test.ts",
+    "prepack": "npm run build",
+    "verify:package": "node scripts/verification/package-smoke.mjs",
     "lint": "tsc --noEmit",
     "verify:mcp": "node scripts/verification/mcp-smoke.ts"
   },

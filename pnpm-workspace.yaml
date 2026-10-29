@@ -1,3 +1,4 @@
-allowBuilds:
-  node: true
-  '@lydell/node-pty': false
+onlyBuiltDependencies:
+  - node
+ignoredBuiltDependencies:
+  - '@lydell/node-pty'

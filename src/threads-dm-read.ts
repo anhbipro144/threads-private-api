@@ -117,7 +117,9 @@ function requireString(value: unknown, where: string): string {
 
 /** GraphQL responses are prefixed with an anti-hijack `for(;;);` guard. */
 export function parseGraphqlEnvelope(text: string): Record<string, unknown> {
-  const json = JSON.parse(text.replace(/^for\s*\(;;\);\s*/, ''));
+  let json: unknown;
+  try { json = JSON.parse(text.replace(/^for\s*\(;;\);\s*/, '')); }
+  catch { throw new Error('Threads read: invalid response JSON'); }
   if (!isObject(json)) throw new Error('Threads read: response is not an object');
   // A numeric top-level `error` is the HTTP-200 rejection envelope, not a GraphQL error.
   if (typeof json['error'] === 'number') {
@@ -290,6 +292,9 @@ export class ThreadsDmReader {
   #gate: Promise<void> = Promise.resolve();
 
   constructor(options: ThreadsDmReaderOptions) {
+    if (!Number.isFinite(options.minIntervalMs ?? 5000) || (options.minIntervalMs ?? 5000) < 0) {
+      throw new Error('Threads read: minimum interval must be finite and nonnegative');
+    }
     this.#session = options.session;
     this.#endpoint = options.endpoint ?? THREADS_GRAPHQL_ENDPOINT;
     this.#fetch = options.fetchImpl ?? fetch;
@@ -337,12 +342,19 @@ export class ThreadsDmReader {
     const version = this.#sessionVersion;
     const request = build(session);
     try {
-      const response = await this.#fetch(this.#endpoint, {
-        method: 'POST', headers: { ...request.headers }, body: request.body, redirect: 'error',
-      });
+      let response: Response;
+      try {
+        response = await this.#fetch(this.#endpoint, {
+          method: 'POST', headers: { ...request.headers }, body: request.body, redirect: 'error',
+          signal: AbortSignal.timeout(30_000),
+        });
+      } catch { throw new Error('Threads read: request failed'); }
       if (response.status === 401 || response.status === 403) throw new ThreadsAuthRequiredError(`HTTP ${response.status}`);
       if (response.status !== 200) throw new Error(`Threads read: HTTP ${response.status}`);
-      const data = parseGraphqlEnvelope(await response.text());
+      let text: string;
+      try { text = await response.text(); }
+      catch { throw new Error('Threads read: response unavailable'); }
+      const data = parseGraphqlEnvelope(text);
       if (version !== this.#sessionVersion) throw new Error('Threads read: session changed; discard old response');
       // Another in-flight read may have rejected this session; only replacement clears that state.
       if (this.sessionStatus === 'reconnect-required') {
@@ -381,6 +393,7 @@ export class ThreadsDmReader {
     fetchPage: (cursor?: string) => Promise<P>,
     items: (page: P) => readonly T[],
   ): AsyncGenerator<T> {
+    if (!Number.isSafeInteger(maxPages) || maxPages < 1) throw new Error('Threads read: page cap must be a positive safe integer');
     let cursor: string | undefined;
     for (let page = 0; page < maxPages; page++) {
       const result = await fetchPage(cursor);

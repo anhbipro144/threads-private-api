@@ -4,7 +4,30 @@ Updated 2026-10-29. Repository: `/Users/admin/persona/hustle/threads-private-api
 Canonical resumable state. Detailed records: `docs/experiments.md`,
 `docs/protocol-map.md`, `docs/research-log.md`, `docs/feasibility-report.md`, `README.md`.
 
-## Current work — fresh manual connection receive test passed
+## Current work — private GitHub beta packaging
+
+The owner authorized packaging and publishing to the private GitHub repository
+`anhbipro144/threads-private-api`, following instagrapi's consumer README,
+usage-guide, examples and release conventions. Website integration is separate;
+do not modify the website or resume live provider tests for this release.
+
+Release candidate: `0.3.0-beta.1`. Local typecheck/build and **68 unit tests**
+passed; the actual packed archive passed **65 installed-package tests**, JS/TS
+consumer checks and its offline example. The bundle has 31 files and zero runtime
+dependencies. `pnpm verify:package` produces the ignored `.artifacts/*.tgz` and
+`SHA256SUMS`. Project development uses pnpm 10.28.2 with a frozen v9 lockfile;
+no global tool settings were changed. Read errors are sanitized, requests have a
+30-second timeout and invalid pacing/page limits fail before provider calls.
+
+GitHub account `anhbipro144` is authenticated with workflow scope. Use HTTPS with
+the gh credential helper; the existing SSH identity belongs to another account.
+At this checkpoint the repository/release are not yet created. Next: commit,
+create the private repository, push main, verify GitHub CI, then push annotated
+tag `v0.3.0-beta.1`. The tag workflow verifies the bundle before creating the
+prerelease and attaching its archive/checksum. Verify downloaded release assets
+and record final links here. Never infer production readiness from offline tests.
+
+## Previous milestone — fresh manual connection receive test passed
 
 **REPRODUCED one new incoming event after a fresh manual connection. All owned
 receivers stopped.** E5-SDK-FRESH-RECONNECT-20261029 used session **2154** and

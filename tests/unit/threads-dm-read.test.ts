@@ -70,6 +70,31 @@ test('parseGraphqlEnvelope rejects GraphQL errors and missing data', () => {
   assert.throws(() => parseGraphqlEnvelope('{"foo":1}'), /no data/);
 });
 
+test('malformed response JSON and transport/body failures never expose provider values', async () => {
+  const secret = 'synthetic-private-provider-value';
+  assert.throws(() => parseGraphqlEnvelope(secret), error => error instanceof Error && error.message === 'Threads read: invalid response JSON' && !String(error).includes(secret));
+  const network = reader(async () => { throw new Error(secret); });
+  await assert.rejects(network.listThreads(), error => error instanceof Error && error.message === 'Threads read: request failed');
+  assert.equal(network.sessionStatus, 'configured');
+  const brokenBody = new Response('synthetic');
+  brokenBody.text = async () => { throw new Error(secret); };
+  await assert.rejects(reader(async () => brokenBody).listThreads(), /Threads read: response unavailable/);
+  let signal: AbortSignal | null | undefined;
+  await reader(async (_url, init) => { signal = init?.signal; return jsonResponse({ data: threadListData }); }).listThreads();
+  assert(signal instanceof AbortSignal && !signal.aborted);
+});
+
+test('invalid pacing or page caps fail before any provider call', async () => {
+  for (const minIntervalMs of [-1, NaN, Infinity]) assert.throws(() => new ThreadsDmReader({ session: stubSession(), minIntervalMs }), /minimum interval/);
+  let calls = 0;
+  const client = reader(async () => { calls++; throw new Error('must not dispatch'); });
+  for (const cap of [0, -1, NaN, Infinity, 1.5]) {
+    await assert.rejects(async () => { for await (const _item of client.allThreads(cap)) {} }, /page cap/);
+    await assert.rejects(async () => { for await (const _item of client.allMessages('thread-1', cap)) {} }, /page cap/);
+  }
+  assert.equal(calls, 0);
+});
+
 test('parseThreadList returns thread ids and pagination', () => {
   const page = parseThreadList(threadListData);
   assert.deepEqual(page.threads.map((t) => t.id), ['thread-1', 'thread-2']);
