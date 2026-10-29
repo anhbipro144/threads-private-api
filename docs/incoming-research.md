@@ -1,6 +1,12 @@
 # Incoming-message investigation
 
-Investigation after commit `91393b4`. No standalone push receiver is implemented.
+Investigation after commit `91393b4`. A private Node research receiver reproduced
+one incoming push on 2026-10-29. `ThreadsDmIncoming` is now extracted/exported with
+66 passing synthetic tests plus typecheck/build. E5-SDK-PUSH-20261029 separately
+reproduced one compiled-SDK incoming delivery/callback matching a Node read with
+DevTools disconnected and the owned observation tab closed.
+See [SDK setup and limits](incoming-sdk.md). The research reproduction does not
+establish long-running production reliability for the extracted SDK.
 The static candidates below remain **HYPOTHESIS** where not established by the
 bounded runtime observation. Do not equate a text send's HTTP transport with
 incoming transport, or MQTT-looking legacy strings with the active browser path.
@@ -29,6 +35,20 @@ JavaScript in this artifact despite its WASM wrapper names. See
 [DGW wire research](dgw-wire-research.md) for fields, exact source offsets and
 remaining runtime checks; none of those static candidates is a verified server
 contract yet.
+
+## Standalone push — 2026-10-29
+
+**REPRODUCED** in `/private/tmp/threads-dgw-node-research.mjs`: fresh in-memory
+session and exact captured initial subscription frames; accepted stream and
+protobuf subscription; owned browser tab closed and DevTools disconnected;
+one owner-performed new B→A message decoded in Node and matched to a separate
+Node read in memory. No agent DM sent. No new device/sequence state invented.
+See E5-NODE-PUSH-20261029 in `experiments.md` and the current handoff for setup,
+consumed authorization and limitations. The process is stopped and private state
+discarded. Its generic shutdown diagnostic needs intentional-close handling
+before the prototype was promoted into SDK code; the extraction now has separate
+synthetic stop/close regression coverage. Further live messages need fresh
+approval. Reconnect, long-running use, expiry and duplicate behavior unverified.
 
 ## Candidate stream and subscription
 

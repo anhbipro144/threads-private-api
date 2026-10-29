@@ -4,6 +4,9 @@
  */
 export const researchStatus = 'read-reproduced-send-verified-controlled' as const;
 
+export { ThreadsDmIncoming, ThreadsIncomingError } from './threads-dm-incoming.ts';
+export type { ThreadsIncomingSession, ThreadsIncomingOptions, ThreadsIncomingState } from './threads-dm-incoming.ts';
+
 export { createFileThreadsSendJournal } from './threads-send-journal.ts';
 export type { ThreadsSendJournal, ThreadsSendJournalStatus } from './threads-send-journal.ts';
 

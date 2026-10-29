@@ -30,6 +30,86 @@ and independently confirmed exactly one receipt on B.
 
 ## Latest sending receipt checkpoint (2026-10-28)
 
+### E5-SDK-PUSH-20261029 — compiled SDK incoming delivery passed
+
+The owner opted into a separate SDK live test. The private validation helper
+imported `ThreadsDmIncoming` from built `dist/index.js`, captured fresh exact
+session/setup state from existing autoConnect Chrome and verified controlled
+owner identity. A scoped baseline was read once. Its owned observation tab
+closed and DevTools disconnected before SDK connection/subscription readiness.
+The owner then reviewed/sent one new unique B→A plain-text test message in the
+agreed chat and reported sent. No agent DM or automatic reply was sent.
+
+The compiled SDK produced exactly one callback for the new controlled message.
+After the action report, a single independent Node read matched the callback's
+message ID, sender, timestamp and text in memory. Sanitized output:
+`sdkIncomingMatchedNodeRead:true`, `sdkCallbackCount:1`, `usingBuiltPackage:true`,
+`newScopedMessages:1`, `devtoolsDisconnected:true`,
+`browserObservationTabClosed:true`, `messagesSentByAgent:0`,
+`credentialsSaved:false`. Chrome remained open; no browser-closed push claim.
+
+Confidence: **REPRODUCED** for this bounded compiled-SDK incoming delivery and
+comparison. Test action and comparison are consumed; no further message is
+authorized. Session 64341 received `stop` and exited 0 without the prototype's
+generic shutdown-rejection diagnostic. No active receiver/private session remains.
+The owner's later message-text statement was not re-read/re-compared after stop;
+its contents are not copied into the repository or fixtures.
+
+No credentials, message contents, private URLs or raw frames were logged/saved.
+No production deployment or website integration. Long-running use, genuine
+expiry, reconnection/reconciliation and general duplicate guarantees remain
+unverified. The prior 66 synthetic tests/typecheck/build remain the last offline
+checks; this test changed documentation only.
+
+### Incoming SDK extraction — offline 2026-10-29
+
+Owner resumed after the restart checkpoint. Extracted `ThreadsDmIncoming`, the
+internal bounded protocol decoder and public exports from the reproduced research
+path. The receiver accepts exact caller-captured state, filters one conversation,
+deduplicates IDs locally and handles explicit stop/failure without reconnect.
+The prototype's ambiguous shutdown diagnostic is addressed in SDK lifecycle
+code and synthetic regression tests. No new live test occurred; the previous
+message action/comparison remains consumed.
+
+Checks: typecheck, **66 synthetic tests**, build pass. Coverage includes setup
+correlation, malformed/fractured/oversized frames and protobuf, scope/stream
+rejection, conflicting duplicates, resource caps, callback rejection, terminal
+states and timer cleanup. This is implementation/offline validation, not a new
+live reproduction or production-readiness claim. Setup: `docs/incoming-sdk.md`.
+
+### E5-NODE-PUSH-20261029 — standalone incoming push reproduced
+
+Owner approved Chrome framing verification followed by a Node receiver.
+Metadata-only observation in the agreed controlled conversation identified
+version-5 establish/data/ack and ping/pong frames, with no parser rejection or
+unfinished data in the bounded check. Owner identity was checked in memory.
+
+Private research helper `/private/tmp/threads-dgw-node-research.mjs` captured
+the exact first subscription frames and fresh session headers, then closed its
+owned observation tab and disconnected DevTools. It connected to the observed
+gateway in Node, replayed the captured setup, handled transport acknowledgements,
+and decoded the accepted protobuf subscribe operation. Chrome remained open.
+No new device ID, sequence cursor, operation or authentication value was guessed.
+
+After readiness, the owner reviewed and sent exactly one new unique B→A text in
+the agreed chat and reported sent. Node decoded the incoming envelope/base64/
+LSResponse protobuf delta and filtered `SlideUQPPNewMessage` to the agreed chat.
+One explicit independent Node read then matched the single new message's ID,
+sender, timestamp and text in memory. No agent message sent. No provider polling,
+automatic uncertain-send retry, message text, IDs, credentials or raw frames
+were logged/saved. The one-shot comparison and owner action are consumed.
+
+Result: **REPRODUCED** standalone Node subscription and one incoming text event,
+matched to a separate read with DevTools disconnected and owned tab closed.
+This does not establish browser-closed push, long-running reliability, expiry,
+reconnect, general sequence/deduplication semantics or production support.
+
+Tool session 57511 stopped and exited 0 at the owner's restart request. A generic
+rejection diagnostic appeared during shutdown after the successful comparison;
+review intentional-close classification before extracting SDK code. No retry.
+The receiver is still an ephemeral prototype; the repository contains a metadata
+classifier only. Last offline checks: typecheck, 56 synthetic tests, build pass.
+
 ### E5-INCOMING-20261028 — one controlled incoming message
 
 Hypothesis: an owner-performed B→A message appears in the browser and is readable

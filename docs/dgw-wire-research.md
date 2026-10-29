@@ -1,9 +1,30 @@
 # DGW connection and frame research — 2026-10-28
 
 Static continuation after `c7edfe9`. These are **HYPOTHESIS** for the active
-service contract, derived from inert public client source. No new browser
+service contract unless corroborated below, derived from inert public client source. No new browser
 connection, subscription, message send or provider request was made in this
-continuation. No standalone push receiver is implemented.
+static continuation. Later runtime evidence is recorded immediately below.
+
+2026-10-29 preparation: the source-derived metadata classifier now lives at
+`scripts/verification/dgw-frame-metadata.ts`, outside the SDK exports/build.
+It skips payload bytes, emits no identifiers, handles fragmented/concatenated
+frames and stops on unsupported or malformed data. Its synthetic tests do not
+establish live compatibility. Typecheck, 56 tests and build passed.
+
+2026-10-29 runtime follow-up: owner enablement restored autoConnect. The metadata
+checker recognized establish/data/ack/ping/pong frames without rejection or
+unfinished data in the bounded check. A private Node research receiver then
+replayed the exact captured subscription with fresh in-memory session values,
+received an accepted stream/subscription, and decoded one new controlled incoming
+message. It matched a separate Node read after DevTools disconnected and its
+owned browser tab closed. This **REPRODUCES** one standalone incoming push;
+it does not validate every source-derived branch below. Current state, consumed
+test authorization and shutdown caveat: `docs/agent-handoff.md`,
+E5-NODE-PUSH-20261029 in `docs/experiments.md`. Prototype stopped. SDK extraction
+is now implemented with 66 passing synthetic tests and typecheck/build. Its
+separate E5-SDK-PUSH-20261029 live check received one controlled message, with one
+callback matching a separate Node read. Long-running reconnect/expiry/provider
+deduplication reliability remains unfinished.
 
 ## Connection construction
 

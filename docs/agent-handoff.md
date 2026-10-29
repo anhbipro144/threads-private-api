@@ -1,10 +1,133 @@
 # Threads DM website integration — engineering handoff
 
-Updated 2026-10-28. Repository: `/Users/admin/persona/hustle/threads-private-api`.
+Updated 2026-10-29. Repository: `/Users/admin/persona/hustle/threads-private-api`.
 Canonical resumable state. Detailed records: `docs/experiments.md`,
 `docs/protocol-map.md`, `docs/research-log.md`, `docs/feasibility-report.md`, `README.md`.
 
-## Current work — older messages and incoming read reproduced
+## Current work — compiled incoming SDK live test passed
+
+**REPRODUCED one incoming message through the compiled SDK. No live receiver is
+running.** E5-SDK-PUSH-20261029: tool session **64341** used
+`/private/tmp/threads-dgw-sdk-validation.mjs`, importing `dist/index.js`. It
+verified the controlled owner, captured fresh setup/session in memory, took a
+scoped baseline, closed its owned observation tab and disconnected DevTools.
+`ThreadsDmIncoming.start()` resolved. The owner then reviewed/sent one new unique
+B→A text and reported sent. One SDK callback was observed; an explicit separate
+Node message read matched the single new message's ID/sender/time/text in memory.
+
+Sanitized result: `sdkIncomingMatchedNodeRead:true`, `sdkCallbackCount:1`,
+`usingBuiltPackage:true`, `newScopedMessages:1`, `devtoolsDisconnected:true`,
+`browserObservationTabClosed:true`, `messagesSentByAgent:0`,
+`credentialsSaved:false`. Chrome stayed open. `stop` exited **0**, with no generic
+rejection diagnostic. Private state was discarded. The message action and one-shot
+comparison are consumed; no further live message or agent reply is authorized.
+The owner supplied the message text afterward, when private state was already
+discarded; no new comparison/read was made and no text is retained in project docs.
+
+`ThreadsDmIncoming` is now exported from `src/index.ts`. Source:
+`src/threads-dm-incoming.ts` (session/lifecycle/callback handling),
+`src/threads-incoming-protocol.ts` (bounded frames, envelope/base64/protobuf and
+scoped message decoding). Reuses the existing `parseMessageList` and `DmMessage`.
+Caller supplies exact captured URL/cookie/user agent/initial subscription packets;
+no login, captured-state builder, DM send or automatic reconnect is included.
+Scope is a single server-configured conversation. Setup must match stream ID,
+initial acknowledgement and request ID before readiness. Session/packet values
+are copied privately and released on close. Default uses the same Node 24 native
+WebSocket headers overload as the reproduced prototype; a typed factory supports
+offline testing. Native API typings omit that overload, so a narrow constructor
+cast is documented in source.
+
+Clean stop is explicit and idempotent, including before readiness and inside a
+callback. Unexpected close/error, resnapshot/auth rejection, malformed/unsupported
+data or callback failure stop without retry; errors are value-free. Startup/idle
+deadlines clear timers and listeners. Only text events in the configured chat are
+delivered. Local bounded message-ID/hash deduplication suppresses repeats and
+rejects conflicting representations. No claim of provider ordering, cross-restart
+exactly-once delivery or automatic missed-message recovery. Async callbacks may
+finish out of order; any rejection stops the connection. See `docs/incoming-sdk.md`
+for API usage, supported capture branch and explicit resource limits.
+
+Validation: **66 synthetic tests**, `pnpm typecheck`, `pnpm test`, `pnpm build`
+pass. New tests cover chunk boundaries, session-copy/replay, setup correlation,
+wrong stream/ack/request, unsupported/oversize frames, base64/protobuf failure,
+scope mismatch, duplicates/capacity, callback failures, early/late/inside-callback
+stop, terminal-state restart refusal and startup/idle timer cleanup. No live
+browser/provider request or new message during the offline extraction. CodeGraph
+reported this repository unindexed; current source/callers were checked with `rg`.
+The subsequent compiled-SDK live result is recorded above. The owner requested
+a local commit of this checkpoint. No website change, push or deployment.
+
+**Next:** plan bounded long-running and manual reconnect/reconciliation
+validation. One successful event does not establish
+production reliability. Do not reuse terminated processes or consumed test messages.
+Any new live message needs fresh exact sender/recipient/content/count approval.
+Genuine expiry and recovery across restarts remain unverified. Website integration
+needs a separate new task; no deployment is authorized.
+
+The following paragraphs preserve the successful research checkpoint that supplied
+the implementation evidence. Statements about SDK absence describe that earlier
+checkpoint, not the extraction above.
+
+2026-10-29: **REPRODUCED one standalone incoming Node push delivery.** After
+Chrome frame verification, the research receiver replayed the exact captured
+subscription setup with fresh session material in memory. The provider accepted
+stream establishment and the protobuf subscribe operation. The owned observation
+tab closed and its DevTools client disconnected before the incoming test. Chrome
+stayed open. After the owner independently sent one reviewed unique B→A text in
+the agreed chat, the Node receiver decoded one scoped new-message delta. An
+explicit separate Node message read matched its ID/sender/time/text in memory.
+Result: `standaloneIncomingMatchedNodeRead:true`, `newScopedMessages:1`,
+`devtoolsDisconnected:true`, `browserObservationTabClosed:true`,
+`messagesSentByAgent:0`, `credentialsSaved:false`. No message values retained.
+
+The owner-performed one-message action and one-shot comparison are consumed.
+No further send or live message is authorized. Tool session **57511** received
+`stop`, exited **0**, and discarded its private state. Its shutdown also emitted
+a generic `receiverStopped/transport_or_protocol_rejected` diagnostic after the
+successful comparison; classify intentional-close handling before promoting the
+research harness. Do not reinterpret that diagnostic as a failed delivery or
+repeat the consumed test. No active receiver or captured session can be resumed.
+
+Chrome frame classification was **OBSERVED** for version 5: types 15 establish,
+13 data, 12 ack, 9 ping and 10 pong. The classifier completed without unsupported
+types, incomplete frames or overflow during the bounded observation. The actual
+handshake used auth type `6:0`, no embedded-establish query field, and an initial
+type-2 envelope carrying the captured device/database/sequence configuration.
+Full values stayed in memory. No frame body, credentials or private URL saved.
+
+Repository code remains the research-only metadata classifier
+`scripts/verification/dgw-frame-metadata.ts` plus synthetic tests. It emits no
+payload or IDs, holds at most eight header bytes and skips payloads. Last checks:
+typecheck, **56 tests**, build pass. **Reusable SDK incoming receiver is not yet
+implemented/exported**; the working Node receiver is an ephemeral research
+prototype outside Git, not production support. Website integration stays retired.
+
+External helpers (source contains no embedded session/message values; paths may
+disappear on restart): `/private/tmp/threads-dgw-node-research.mjs` (working
+receiver), `/private/tmp/threads-dgw-node-init.js` (browser init hook), and
+`/private/tmp/threads-dgw-metadata-observation.mjs` (earlier metadata observer).
+The Node helper reads an older private scope record; do not print/index its
+contents or copy it into the repository. New session capture is required for
+any future live run; owner handles login/challenges.
+
+Connection notes: `list_pages` worked after owner re-enabled debugging. Separate
+pinned autoConnect clients initially timed out waiting for consent, then worked
+after the owner's “try again.” The standard MCP redacts network cookies; the
+private Node capture used the pinned autoConnect MCP without header redaction,
+kept all values inside its process, and printed sanitized booleans only. Do not
+export headers, change global configuration or launch an isolated browser.
+Computer Use was unavailable (`Sky ... native pipe startup failed`); do not
+repeat that as a prerequisite for DevTools.
+
+**On resume:** honor the stop until the owner requests continuation. Review the
+research helper and E5-NODE-PUSH-20261029, then extract a reusable bounded receiver
+with synthetic tests. Preserve caller-supplied session material, exact captured
+configuration, conversation filtering, no uncertain-send retry, clean stop and
+timer/resource cleanup. Validate malformed protobuf/framing, stream IDs,
+deduplication and resnapshot/auth rejection before claiming reliability. No
+automatic reconnect/resnapshot, long-running behavior or expiry has been tested.
+Any further live message requires fresh exact approval. No commit/push performed
+in this continuation; working-tree changes listed by `git status` are pending.
 
 User requested a commit and continuation. Local commit **91393b4** contains the
 adapter, milestone, session lifecycle and durable send status work (26 reviewed

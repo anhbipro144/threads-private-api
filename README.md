@@ -125,6 +125,17 @@ conversation; the helper preserves its Relay node ID and uses the pagination
 response root. Missing pagination configuration fails before dispatch instead
 of repeating a page. See [pagination evidence and setup](docs/message-pagination.md).
 
+## Incoming text updates
+
+`ThreadsDmIncoming` receives text events for one configured conversation using
+caller-supplied captured session material. It validates the observed framing and
+subscription, suppresses local duplicate IDs and supports explicit `stop()`.
+It has no automatic reconnect or DM-send method. The research prototype reproduced
+one standalone incoming event. The compiled SDK separately received one controlled
+message with exactly one callback, matching a separate Node read after DevTools
+disconnected. Long-running reliability and recovery remain unverified.
+See [incoming receiver setup and limits](docs/incoming-sdk.md).
+
 ## Controlled text sending
 
 `ThreadsTextSendAttempt` sends one plain-text message in the captured existing
