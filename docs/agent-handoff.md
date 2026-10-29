@@ -21,11 +21,26 @@ no global tool settings were changed. Read errors are sanitized, requests have a
 
 GitHub account `anhbipro144` is authenticated with workflow scope. Use HTTPS with
 the gh credential helper; the existing SSH identity belongs to another account.
-At this checkpoint the repository/release are not yet created. Next: commit,
-create the private repository, push main, verify GitHub CI, then push annotated
-tag `v0.3.0-beta.1`. The tag workflow verifies the bundle before creating the
-prerelease and attaching its archive/checksum. Verify downloaded release assets
-and record final links here. Never infer production readiness from offline tests.
+Publication completed from commit `ca32e32`, annotated tag `v0.3.0-beta.1`:
+
+- Private repository: https://github.com/anhbipro144/threads-private-api
+- Beta release: https://github.com/anhbipro144/threads-private-api/releases/tag/v0.3.0-beta.1
+- Main CI passed: https://github.com/anhbipro144/threads-private-api/actions/runs/40832474785
+- Tag checks/release passed: https://github.com/anhbipro144/threads-private-api/actions/runs/40832545515
+
+The release includes the `.tgz` and `SHA256SUMS`. Both were downloaded into an
+isolated temporary folder; checksum verification, offline install and packaged
+offline example passed (zero live requests/messages). Use the release's checksum
+for its archive. The default local npm cache was sandbox-inaccessible; verification
+used a disposable cache, with no global settings/permissions changed. The local
+shell Node is older than the package engine; the demo used project Node 24.22.1.
+README documents private release download/install; use Node 24.22.1 or a compatible
+newer Node 24. No npm registry publication occurred.
+
+Next task: owner-requested website integration using this release, with session
+handling and controlled acceptance checks. No website change, deployment or live
+send is authorized by packaging. Genuine expiry, automatic recovery and production
+reliability remain unverified. Never infer production readiness from offline tests.
 
 ## Previous milestone — fresh manual connection receive test passed
 
