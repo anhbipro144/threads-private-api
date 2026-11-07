@@ -23,7 +23,10 @@ The work is limited to the owner's authenticated accounts and consented test con
   shop's account and the third account. Handles stay out of the repository.
 - The owner performs authentication. Never bypass login challenges, access controls, or platform protections.
 - Never inspect unrelated conversations, collect third-party private data, or perform bulk messaging.
-- Obtain explicit approval for each live message, including sender, recipient, exact content, and send count.
+- The owner allowed (2026-11-07) the agent to operate freely within the three test
+  accounts and their chats with each other: read, navigate, capture, accept requests,
+  and send low-volume test messages, without asking first. Report each live action
+  afterwards. This never covers other accounts or chats, bulk messaging, or settings.
 - Never retry a message when delivery status is uncertain.
 - Keep credentials and browser state outside the repository.
 - The owner allowed (2026-11-07) reading message contents and IDs of the agreed test
@@ -38,7 +41,7 @@ The work is limited to the owner's authenticated accounts and consented test con
 
 Read `docs/agent-handoff.md` for the current project state and `docs/experiments.md` before resuming live observations.
 
-Use Chrome DevTools for narrowly scoped diagnostics of the owner's test conversation. Use REA for targeted static analysis of relevant publicly served JavaScript.
+Use Chrome DevTools for narrowly scoped diagnostics of the owner's test accounts. Use REA for targeted static analysis of relevant publicly served JavaScript.
 
 Always attach Chrome DevTools with `--autoConnect` to the owner's existing
 remote-debugging Chrome (the debugging UI shows `127.0.0.1:9222`; plain HTTP
@@ -56,7 +59,7 @@ Use **HYPOTHESIS / OBSERVED / REPRODUCED / VERIFIED** accurately.
 
 Do not implement messaging protocol methods based on assumptions. Validate inbox listing, message reading, and explicitly approved test sending before declaring the integration functional.
 
-Live tests remain opt-in. A previous approval does not authorize additional messages.
+Live tests stay within the test accounts above; anything outside them needs the owner's explicit approval.
 
 ## Repository boundaries
 
