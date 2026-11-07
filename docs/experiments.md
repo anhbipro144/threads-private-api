@@ -280,6 +280,29 @@ Opening a chat with nothing unread sent no mark-read mutation. Not established:
 mark-read (needs an unread customer message), whether SDK reads mark a chat read,
 quote replies in live deltas, and quoting photos.
 
+### E16-SHOP-ACTIONS-20261107 — reactions, edits and unsends from the shop
+
+In the second test chat, through the web UI in the agent's own tab, the shop did one
+of each: a ❤️ reaction on the third account's text, an edit of its own recent quote
+reply, and an unsend of its own older reply. An in-page hook recorded the requests;
+a Node read followed. **OBSERVED** (requests) and **REPRODUCED** (reads):
+
+| Action | Mutation (doc id, 2026-11-07) | Variables | In a later read |
+| --- | --- | --- | --- |
+| React | `WmiSlideSetReactionMutation` (`30181807461409156`) | `message_id`, `reaction` (the emoji), `offline_threading_id`, `logging_data: null` | `reactions[]` with `reaction`, `sender_fbid`, `reaction_timestamp_ms`; the emoji came back as `❤` without the `U+FE0F` selector |
+| Edit | `WmiSlideEditMessageMutation` (`28882470164713864`) | `message_id`, `new_text_body: {sensitive_string_value}`, `offline_threading_id`, `logging_data: null` | new text in place of the old; `msg_edit_history[]` with one `{body, timestamp_ms}` |
+| Unsend | `WmiSlideUnsendForEveryoneMessageMutation` (`29219538821013908`) | `message_id`, `offline_threading_id` | the message is absent |
+
+UI notes: hover controls are a reaction picker, a reply button and "More"; for the
+shop's own messages they come before the text in the accessibility tree. "More"
+offered Edit only on the recent message (Copy, Delete for you, Unsend on the older
+one). Unsend asked for no confirmation; the edited message shows an "Edited" button.
+
+The SDK already returns edited text and drops unsent messages on read; it does not
+expose reactions or edit history, and has no send method for these actions. Not
+established: what live deltas carry for each, the customer's own edits/unsends/
+reactions, reaction removal, the edit time window, and read receipts.
+
 ### E5-SDK-FRESH-RECONNECT-20261029 — fresh manual connection received a new message
 
 After the earlier bounded test expired, the owner explicitly opted into a new
