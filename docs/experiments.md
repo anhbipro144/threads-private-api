@@ -184,6 +184,31 @@ Not established: which identity field equals `sender_fbid`, whether IDs stay sta
 across sessions or name changes, and avatar URL lifetime. The inbox's third chat was
 not inspected.
 
+### E14-REPLY-20261107 — replying from the shop to a new customer
+
+The owner approved one text from the shop's account to the third account, in the
+request chat accepted earlier. **REPRODUCED** in Node, one attempt, no retry:
+
+- **The send operation ID changed.** The page's public JavaScript now maps
+  `WmiSlideTextMessageMutation` (through `WmiSlideTextMessageMutation.threads.graphql`
+  and `WmiSlideTextMessageMutation_threadsRelayOperation`) to doc id
+  `29354454254221243`, not the `28577421681940194` recorded on 2026-10-28. Its nine
+  input fields are unchanged and match what `ThreadsTextSendAttempt` sends. A nearby
+  operation also takes `recipient_fbid`; it was not used.
+- **No browser send was captured.** The send form was built from a fresh message-list
+  form (same shared fields) with the friendly name, the current doc id and the
+  observed variables, and `thread_fbid` set to the new chat. The new chat's ID came
+  from the inbox list (`folder: "INBOX"`); the shop's messaging sender ID came from
+  the shop's own message in the agreed chat.
+- `ThreadsTextSendAttempt` validated the acknowledgement (thread, sender, offline
+  ID, text echo). A Node read 3 seconds later showed exactly one new item: the
+  sent text, from the shop, with the acknowledged message ID.
+
+DevTools stayed attached (one long-lived connection) during the Node calls, and
+Chrome was open. Not established: receipt on the third account's side (not checked
+by the owner), and how often the doc id changes. Hard-coding a doc id is fragile;
+reading it from the page's public JavaScript, as here, worked.
+
 ### E5-SDK-FRESH-RECONNECT-20261029 — fresh manual connection received a new message
 
 After the earlier bounded test expired, the owner explicitly opted into a new
