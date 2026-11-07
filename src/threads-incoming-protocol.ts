@@ -97,6 +97,8 @@ function single(values: Field[], id: number, wire: number): Field | undefined {
 /** Live changes to messages in the conversation, observed once each (E16-E18-CUSTOMER-LIVE-20261107). */
 export type DmChange =
   | { readonly kind: 'reaction'; readonly messageId: string; readonly senderFbid: string; readonly reaction: string; readonly timestampMs: string }
+  /** Reaction removed (E16-E18-SDK-LIVE-20261107). */
+  | { readonly kind: 'unreact'; readonly messageId: string; readonly senderFbid: string }
   | { readonly kind: 'edit'; readonly messageId: string; readonly content: string; readonly timestampMs: string }
   | { readonly kind: 'unsend'; readonly messageId: string }
   /** Observed after this account read the conversation elsewhere; carries no reader. */
@@ -114,6 +116,10 @@ function parseChange(entry: Record<string, unknown>): DmChange | undefined {
     const r = entry['reaction'];
     return object(r) && str(r['reaction']) && str(r['sender_fbid']) && str(r['reaction_timestamp_ms'])
       ? { kind: 'reaction', messageId: id, senderFbid: r['sender_fbid'], reaction: r['reaction'], timestampMs: r['reaction_timestamp_ms'] } : undefined;
+  }
+  if (type === 'SlideUQPPDeleteReaction') {
+    const r = entry['reaction'];
+    return object(r) && str(r['sender_fbid']) ? { kind: 'unreact', messageId: id, senderFbid: r['sender_fbid'] } : undefined;
   }
   if (type === 'SlideUQPPEditMessage') {
     const e = entry['slide_edit_history_entry'];

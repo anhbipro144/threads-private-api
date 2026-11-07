@@ -165,6 +165,7 @@ test('reactions, edits, unsends and reads reach onChange in order after messages
   context.socket.receive(frame(13, delta([
     entry('one'),
     { ...base, __typename: 'SlideUQPPCreateReaction', message_id: 'one', reaction: { reaction: '\u2764', sender_fbid: 'test-B', reaction_timestamp_ms: '2000', log_message_id: 'x' } },
+    { ...base, __typename: 'SlideUQPPDeleteReaction', message_id: 'one', reaction: { reaction: '❤', sender_fbid: 'test-B', reaction_timestamp_ms: null, log_message_id: 'x' } },
     { ...base, __typename: 'SlideUQPPEditMessage', message_id: 'one', slide_edit_history_entry: { body: 'edited text', timestamp_ms: '3000' } },
     { ...base, __typename: 'SlideUQPPDeleteMessage', message_id: 'one', latest_snippet_activity_context: {} },
     { ...base, __typename: 'SlideUQPPMarkRead' },
@@ -172,10 +173,11 @@ test('reactions, edits, unsends and reads reach onChange in order after messages
     { ...base, thread_fbid: 'other-chat', __typename: 'SlideUQPPDeleteMessage', message_id: 'x' },
     { ...base, __typename: 'SlideUQPPSomethingNew', message_id: 'one' },
   ])));
-  while (events.length < 5) await new Promise(resolve => setImmediate(resolve));
+  while (events.length < 6) await new Promise(resolve => setImmediate(resolve));
   await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(events, ['message:one',
     JSON.stringify({ kind: 'reaction', messageId: 'one', senderFbid: 'test-B', reaction: '\u2764', timestampMs: '2000' }),
+    JSON.stringify({ kind: 'unreact', messageId: 'one', senderFbid: 'test-B' }),
     JSON.stringify({ kind: 'edit', messageId: 'one', content: 'edited text', timestampMs: '3000' }),
     JSON.stringify({ kind: 'unsend', messageId: 'one' }), JSON.stringify({ kind: 'read' })]);
   assert.equal(context.receiver.state, 'ready');
