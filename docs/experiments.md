@@ -139,8 +139,16 @@ response contained one thread, the request chat. `ThreadsDmReader.listThreads()`
 that captured body returned **the same single thread ID**, without the agreed inbox
 chat and with no next page. **REPRODUCED:** a backend can list Message requests by
 reading the inbox-list query with `folder: "PENDING"`. The Node read did not send
-the mark-seen mutation. Not tested: reading messages in a request chat, accepting,
-replying, and how often polling is safe.
+the mark-seen mutation.
+
+**Node read of a request chat's messages, same day (no messages).** The helper also
+captured the agreed chat's `BarcelonaMessageListContainerQuery` form. In Node,
+`listThreads()` on `PENDING` returned the one request chat, and `listMessages()` on
+its ID, with only `thread_fbid` substituted, returned both first-chat texts from the
+customer, one sender, all in that thread. **REPRODUCED:** a backend can read a
+request chat's messages before accepting it, with the message-list form captured
+from a different chat (a first data point for E15). No mark-read mutation was sent.
+Not tested: accepting, replying, and how often polling is safe.
 
 ### E5-SDK-FRESH-RECONNECT-20261029 — fresh manual connection received a new message
 
