@@ -31,13 +31,33 @@ export interface TextDmMessage extends DmMessageBase {
   readonly content: string;
 }
 
-/** A message without observed text (photo, video, ...). Kept so one never breaks a read. */
+export interface DmImage {
+  /** Provider CDN URL; copy the file promptly if it must be kept. Its lifetime is unobserved. */
+  readonly url: string;
+  readonly width: number;
+  readonly height: number;
+}
+
+export interface ImageDmMessage extends DmMessageBase {
+  readonly kind: 'image';
+  readonly images: readonly DmImage[];
+}
+
+export interface SharedPostDmMessage extends DmMessageBase {
+  readonly kind: 'shared-post';
+  readonly postId: string;
+  readonly ownerId: string;
+  /** The provider's `caption_body_text`, when present. */
+  readonly caption: string | null;
+}
+
+/** Any other message (link, video, ...). Kept so one never breaks a read. */
 export interface UnsupportedDmMessage extends DmMessageBase {
   readonly kind: 'unsupported';
 }
 
 /** One message in a conversation. */
-export type DmMessage = TextDmMessage | UnsupportedDmMessage;
+export type DmMessage = TextDmMessage | ImageDmMessage | SharedPostDmMessage | UnsupportedDmMessage;
 
 /** Relay-style forward-pagination cursor. */
 export interface PageInfo {
@@ -173,6 +193,30 @@ export function parseThreadList(data: Record<string, unknown>): ThreadListPage {
   return { threads, pageInfo: parsePageInfo(connection as Record<string, unknown>) };
 }
 
+/** Image and shared-post shapes come from live deltas (E11); anything unexpected stays `unsupported`. */
+function parseContent(content: unknown) {
+  const unsupported = { kind: 'unsupported' as const };
+  if (!isObject(content)) return unsupported;
+  if (typeof content['text_body'] === 'string') return { kind: 'text' as const, content: content['text_body'] };
+  if (content['__typename'] === 'THMessageImagesContent' && Array.isArray(content['images']) && content['images'].length > 0) {
+    const images: DmImage[] = [];
+    for (const image of content['images']) {
+      if (!isObject(image)) return unsupported;
+      const { attachment_cdn_url: url, width, height } = image;
+      if (typeof url !== 'string' || !url.startsWith('https://') || typeof width !== 'number' || typeof height !== 'number') return unsupported;
+      images.push({ url, width, height });
+    }
+    return { kind: 'image' as const, images };
+  }
+  if (content['__typename'] === 'THTextPostAppLinkXMA' && isObject(content['content_ref'])) {
+    const { media_igid: postId, owner_igid: ownerId } = content['content_ref'];
+    if (typeof postId !== 'string' || typeof ownerId !== 'string') return unsupported;
+    const caption = isObject(content['xma']) ? content['xma']['caption_body_text'] : null;
+    return { kind: 'shared-post' as const, postId, ownerId, caption: typeof caption === 'string' ? caption : null };
+  }
+  return unsupported;
+}
+
 export function parseMessageList(data: Record<string, unknown>, expectedThreadId?: string): MessageListPage {
   if ('get_slide_thread' in data && 'fetch__SlideThread' in data) throw new Error('Threads read: ambiguous message roots');
   const thread = data['get_slide_thread'] ?? data['fetch__SlideThread'];
@@ -186,16 +230,13 @@ export function parseMessageList(data: Record<string, unknown>, expectedThreadId
     if (!isObject(node)) throw new Error(`Threads read: message[${i}] has no as_micg_interface`);
     const threadFbid = requireString(node['thread_fbid'], `message[${i}].thread_fbid`);
     if (expectedThreadId !== undefined && threadFbid !== expectedThreadId) throw new Error('Threads read: unexpected conversation');
-    const content = node['content'];
-    const base = {
+    return {
       messageId: requireString(node['message_id'], `message[${i}].message_id`),
       threadFbid,
       senderFbid: requireString(node['sender_fbid'], `message[${i}].sender_fbid`),
       timestampMs: requireString(node['timestamp_ms'], `message[${i}].timestamp_ms`),
+      ...parseContent(node['content']),
     };
-    return isObject(content) && typeof content['text_body'] === 'string'
-      ? { kind: 'text' as const, ...base, content: content['text_body'] }
-      : { kind: 'unsupported' as const, ...base };
   });
   return { messages, pageInfo: parsePageInfo(connection as Record<string, unknown>) };
 }

@@ -7,7 +7,8 @@ and independently confirmed exactly one receipt on B.
 
 ## Rules
 
-- Two owner-controlled test accounts only; inspect only their agreed test chat.
+- Three owner-controlled test accounts only (see `AGENTS.md`); inspect only their
+  agreed test chats.
 - Begin with read-only observation; owner handles sign-in and challenges.
 - Always attach to the owner's existing remote-debugging Chrome with
   `--autoConnect`, per the owner's explicit preference. Do not launch another
@@ -29,6 +30,32 @@ and independently confirmed exactly one receipt on B.
   Do not bypass security or broaden account/recipient scope.
 
 ## Latest sending receipt checkpoint (2026-10-28)
+
+### E11-NON-TEXT-20261107 — image, link and shared-post shapes in live deltas
+
+The owner approved three customer-to-shop messages and sent each by hand: one image,
+one link and one shared own post. The agent sent nothing. A temporary in-page listener
+in the owner's Chrome kept only field names and types, restricted to the agreed chat.
+No text, IDs, URLs or raw frames were kept, and a reload removed the listener.
+
+All three arrived as `SlideUQPPNewMessage`, each followed by `SlideUQPPMarkRead`,
+with no parser errors and no entries from other chats. **OBSERVED**, one message each:
+
+| Type | `content_type` | `content.__typename` | Useful fields |
+| --- | --- | --- | --- |
+| Image | `IMAGES` | `THMessageImagesContent` | `images[]`: `attachment_cdn_url`, `width`, `height`, preview variants |
+| Link | `MESSAGE_INLINE_SHARE` | `THMessageXMAContent` | `xma_text_body`, `xma` title, subtitle and `target_url` |
+| Shared post | `TEXT_POST_APP_LINK_XMA` | `THTextPostAppLinkXMA` | `content_ref.media_igid`, `owner_igid`, `xma.caption_body_text`, `threads_post_json` |
+
+Every message also carried `as_micg_interface.sender` with `name`, `username` and
+`profile_pic_uri`, the lead for customer identity. A link's text is not in `text_body`.
+
+**Not established:** the message-list read shape, because reload and reopening served
+chat data from page or client cache without `BarcelonaMessageListContainerQuery`. The
+parser falls back to `unsupported` on a mismatch, and the image and shared-post kinds
+have no live Node read or receiver run. Field meanings such as `caption_body_text`,
+CDN URL lifetime, multi-image messages and story replies were not checked. Story
+replies, video, voice and stickers were left out by owner decision.
 
 ### E5-SDK-FRESH-RECONNECT-20261029 — fresh manual connection received a new message
 

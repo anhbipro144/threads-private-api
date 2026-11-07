@@ -144,6 +144,29 @@ test('a mixed text and photo page parses without failing', () => {
   assert.deepEqual(parseMessageList(data).messages.map(m => [m.messageId, m.kind]), [['m-1', 'text'], ['m-2', 'unsupported']]);
 });
 
+test('images and shared posts parse from observed shapes; anything else stays unsupported', () => {
+  const base = { messageId: 'm-1', threadFbid: 'thread-1', senderFbid: 'user-A', timestampMs: '1000' };
+  const parse = (content: unknown) => {
+    const data = structuredClone(messageListData);
+    Object.assign(data.get_slide_thread.messages.edges[0]!.node.as_micg_interface, { content });
+    return parseMessageList(data).messages[0];
+  };
+  const image = { attachment_cdn_url: 'https://cdn.invalid/a.jpg', width: 10, height: 20, preview_cdn_url: 'https://cdn.invalid/p.jpg' };
+  assert.deepEqual(parse({ __typename: 'THMessageImagesContent', images: [image] }),
+    { ...base, kind: 'image', images: [{ url: 'https://cdn.invalid/a.jpg', width: 10, height: 20 }] });
+  const post = { __typename: 'THTextPostAppLinkXMA', content_ref: { media_igid: 'post-1', owner_igid: 'owner-1' } };
+  assert.deepEqual(parse({ ...post, xma: { caption_body_text: 'synthetic' } }),
+    { ...base, kind: 'shared-post', postId: 'post-1', ownerId: 'owner-1', caption: 'synthetic' });
+  assert.deepEqual(parse(post), { ...base, kind: 'shared-post', postId: 'post-1', ownerId: 'owner-1', caption: null });
+  for (const content of [
+    { __typename: 'THMessageImagesContent', images: [] },
+    { __typename: 'THMessageImagesContent', images: [{ ...image, attachment_cdn_url: 'javascript:alert(1)' }] },
+    { __typename: 'THMessageImagesContent', images: [{ ...image, width: '10' }] },
+    { __typename: 'THTextPostAppLinkXMA', content_ref: { media_igid: 'post-1' } },
+    { __typename: 'THMessageXMAContent', xma_text_body: 'synthetic link' },
+  ]) assert.deepEqual(parse(content), { ...base, kind: 'unsupported' });
+});
+
 test('ThreadsDmReader.listThreads replays the request and parses', async () => {
   let calledWith: string | undefined;
   const page = await reader(async (_url, init) => {

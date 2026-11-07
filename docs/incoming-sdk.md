@@ -62,7 +62,9 @@ No automatic reconnect, resnapshot, credential renewal or provider retry exists.
 Callbacks run one at a time in arrival order; each is awaited before the next.
 Throwing or rejecting a callback stops the receiver without replaying that event;
 the `callback-failed` error carries `messageId` so the host can recover it by reading.
-Messages without text arrive as `kind: 'unsupported'` (ID, sender, time only).
+Images arrive as `kind: 'image'` and shared Threads posts as `kind: 'shared-post'`.
+Anything else without text, including links, arrives as `kind: 'unsupported'`
+(ID, sender, time only).
 
 Within one connection, message IDs are suppressed after first delivery; conflicting
 repeated text-message representations stop the connection. `seenMessageIds` can

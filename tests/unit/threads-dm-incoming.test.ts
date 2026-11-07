@@ -158,6 +158,19 @@ test('callbacks run one at a time in order; an unsupported message is delivered,
   context.receiver.stop();
 });
 
+test('an image redelivered with a changed CDN URL is suppressed, not a conflict', async () => {
+  const received: DmMessage[] = [], context = await ready(message => { received.push(message); });
+  const image = (url: string) => {
+    const delivered = entry('photo');
+    Object.assign(delivered.message.as_micg_interface, { content: { __typename: 'THMessageImagesContent', images: [{ attachment_cdn_url: url, width: 1, height: 1 }] } });
+    return delivered;
+  };
+  context.socket.receive(frame(13, delta([image('https://cdn.invalid/1'), image('https://cdn.invalid/2')])));
+  while (received.length < 1) await new Promise(resolve => setImmediate(resolve));
+  assert.equal(received[0]!.kind, 'image'); assert.equal(received.length, 1); assert.equal(context.receiver.state, 'ready');
+  context.receiver.stop();
+});
+
 test('callback stop prevents later batch deliveries; a full dedupe set evicts the oldest ID', async () => {
   const received: DmMessage[] = [];
   const context = await ready(message => { received.push(message); context.receiver.stop(); });

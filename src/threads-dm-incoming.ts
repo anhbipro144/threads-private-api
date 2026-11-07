@@ -200,7 +200,9 @@ export class ThreadsDmIncoming {
           check(envelope.messages.length === 0 || this.#state === 'ready');
           for (const message of envelope.messages) {
             if (this.#state !== 'ready') break;
-            const digest = createHash('sha256').update(JSON.stringify(message)).digest('hex');
+            // CDN URLs may differ between deliveries of one image, so they are not a conflict.
+            const stable = message.kind === 'image' ? { ...message, images: [] } : message;
+            const digest = createHash('sha256').update(JSON.stringify(stable)).digest('hex');
             if (this.#seen.has(message.messageId)) {
               const previous = this.#seen.get(message.messageId);
               check(previous === null || previous === digest);

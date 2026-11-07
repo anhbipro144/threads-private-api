@@ -110,3 +110,10 @@ idempotency and standalone reproduction remain unknown; another test send
 would require a new explicit authorization. No draft text, identifiers or private
 conversation URL is recorded here. Browser sending was through Chrome DevTools;
 no protocol send method or SDK was implemented.
+
+## Non-text messages in live deltas (E11, 2026-11-07)
+
+**OBSERVED**, one message each, in `SlideUQPPNewMessage` deltas only. See
+`E11-NON-TEXT-20261107` in `experiments.md` for fields and limits. `content_type` values:
+`IMAGES`, `MESSAGE_INLINE_SHARE` (link), `TEXT_POST_APP_LINK_XMA` (shared post). The
+message-list read shape for these types remains unobserved.

@@ -7,6 +7,9 @@
   Breaking for code that reads `content` without checking `kind`.
 - Receiver delivers callbacks one at a time, in order. `callback-failed` errors carry
   `messageId`. The 10,000-ID dedupe set evicts the oldest ID instead of stopping.
+- `DmMessage` adds `kind: 'image'` (`images` with URL and size) and `kind: 'shared-post'`
+  (`postId`, `ownerId`, `caption`), parsed from shapes observed live in E11. Links and
+  other kinds stay `unsupported`.
 
 ## 0.3.0-beta.1
 
