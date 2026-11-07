@@ -116,5 +116,5 @@ no protocol send method or SDK was implemented.
 **OBSERVED**, one message each, in `SlideUQPPNewMessage` deltas only. See
 `E11-NON-TEXT-20261107` in `experiments.md` for fields and limits. `content_type` values:
 `IMAGES`, `MESSAGE_INLINE_SHARE` (link), `TEXT_POST_APP_LINK_XMA` (shared post).
-In message-list reads (E12, **REPRODUCED**), shared posts and links also carry
+In message-list reads (`E11-SDK-NON-TEXT-20261107`, **REPRODUCED**), shared posts and links also carry
 `text_body`, so type checks must come before it.

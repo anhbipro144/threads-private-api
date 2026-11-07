@@ -92,9 +92,9 @@ Sizes are rough guesses. Phases 3 to 5 depend on what the experiments find.
 
 No live traffic and no new approvals.
 
-**Status, 2026-11-07: implemented, uncommitted; synthetic tests only.** The real
-non-text shape is still unobserved. A real photo whose node lacks `as_micg_interface`,
-a message ID, a sender or a timestamp would still fail closed until E11 shows its shape.
+**Status, 2026-11-07: committed. Images and shared posts are verified live (E11).**
+Other kinds stay `unsupported`; a node without a message ID, sender or timestamp
+still fails closed.
 
 - Replace "throw on non-text" with a message union: `text` and `unsupported`. An
   `unsupported` message keeps its ID, sender and time, so the inbox can say "open in
@@ -118,7 +118,7 @@ One controlled run per experiment, recording sanitized shapes only. Results go i
 
 | ID | Question | Method |
 | --- | --- | --- |
-| E11 | What do non-text messages look like, in reads and deltas? | Ran 2026-11-07 for image, link and shared post in live deltas (`E11-NON-TEXT-20261107`). The owner then limited SDK support to images and shared posts; the compiled SDK read and received both live (`E12-SDK-NON-TEXT-20261107`). Links read as `text` but arrive live as `unsupported`. Story replies, video, voice and stickers are untested |
+| E11 | What do non-text messages look like, in reads and deltas? | Ran 2026-11-07 for image, link and shared post in live deltas (`E11-NON-TEXT-20261107`). The owner then limited SDK support to images and shared posts; the compiled SDK read and received both live (`E11-SDK-NON-TEXT-20261107`). Links read as `text` but arrive live as `unsupported`. Story replies, video, voice and stickers are untested |
 | E12 | Where do name, username and avatar come from? Is the ID stable? | Observe the members query and thread list fields in the owner's browser |
 | E13 | How does the mailbox page, and which folders exist? | Observe inbox scrolling and folder switching |
 | E14 | What happens when a new person writes first? | C opens a new chat with A. Check the delta, folder, and whether accepting a request is needed before replying |

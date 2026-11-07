@@ -51,9 +51,9 @@ Every message also carried `as_micg_interface.sender` with `name`, `username` an
 `profile_pic_uri`, the lead for customer identity. A link's text is not in `text_body`.
 
 **Not established in E11:** the message-list read shape, because reload and reopening
-served chat data from page or client cache. E12 below covers reads and the SDK.
+served chat data from page or client cache. The SDK run below covers reads.
 
-### E12-SDK-NON-TEXT-20261107 — compiled SDK reads and receives an image and a shared post
+### E11-SDK-NON-TEXT-20261107 — compiled SDK reads and receives an image and a shared post
 
 The owner approved two customer-to-shop messages in the agreed chat, one plain test
 image and one share of their own test post, and sent each by hand. The agent sent
