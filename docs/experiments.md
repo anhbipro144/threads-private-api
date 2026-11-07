@@ -131,8 +131,16 @@ opened `/messages/requests` from the mailbox. **OBSERVED** in the browser:
 - No new WebSocket opened. The page listed the request chat.
 
 Whether the `PENDING` response itself contained the request chat was not captured
-(output truncated; a rerun was stopped by the open-chat check). Not tested: a Node
-read with a captured `PENDING` body, accepting, and replying to a request.
+(output truncated; a rerun was stopped by the open-chat check).
+
+**Node read of `PENDING`, same day (no messages).** The helper captured the browser's
+`PENDING` mailbox request, closed its tab and disconnected DevTools. The browser
+response contained one thread, the request chat. `ThreadsDmReader.listThreads()` with
+that captured body returned **the same single thread ID**, without the agreed inbox
+chat and with no next page. **REPRODUCED:** a backend can list Message requests by
+reading the inbox-list query with `folder: "PENDING"`. The Node read did not send
+the mark-seen mutation. Not tested: reading messages in a request chat, accepting,
+replying, and how often polling is safe.
 
 ### E5-SDK-FRESH-RECONNECT-20261029 — fresh manual connection received a new message
 
