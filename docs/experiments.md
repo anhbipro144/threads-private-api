@@ -148,7 +148,17 @@ its ID, with only `thread_fbid` substituted, returned both first-chat texts from
 customer, one sender, all in that thread. **REPRODUCED:** a backend can read a
 request chat's messages before accepting it, with the message-list form captured
 from a different chat (a first data point for E15). No mark-read mutation was sent.
-Not tested: accepting, replying, and how often polling is safe.
+
+**Accepting, same day.** The owner approved accepting the request and one further
+customer text, and did both by hand. The helper captured the session, Message-requests
+read and incoming setup, then disconnected DevTools. Polling `PENDING` every 15
+seconds, Node saw the request chat leave the folder after the owner accepted. A read
+then returned 3 messages instead of 2; the extra item was not inspected. A
+`ThreadsDmIncoming` on the accepted chat's ID reached `ready`, and the owner's text
+arrived as **one `text` callback with the exact test content, matched by a separate
+Node read**, with no duplicate over 20 seconds. **REPRODUCED:** once accepted, a new
+customer's chat behaves like any other chat for the receiver. Not observed: the
+accept request itself, what the third item is, and replying from the shop.
 
 ### E5-SDK-FRESH-RECONNECT-20261029 — fresh manual connection received a new message
 
