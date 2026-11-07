@@ -209,6 +209,33 @@ Chrome was open. Not established: receipt on the third account's side (not check
 by the owner), and how often the doc id changes. Hard-coding a doc id is fragile;
 reading it from the page's public JavaScript, as here, worked.
 
+### E17-PHOTO-SEND-20261107 — how sending a photo works
+
+One generated 400×400 PNG test image was sent once from the shop's account to the
+third account, through the web UI in the agent's own tab (owner policy of
+2026-11-07). Only request shapes were recorded, never image bytes or tokens.
+**OBSERVED**, with the result read back in Node (**REPRODUCED** read):
+
+1. **Upload happens on attach, before Send.** `POST /ajax/mercury/upload.php`,
+   `multipart/form-data`, file part `farr`; query has the usual page fields
+   (`__user`, `__a`, `__req`, `__hs`, `dpr`, `__ccg`, `__rev`, `__s`, `__hsi`, `__dyn`).
+   The response (`for (;;);` JSON) has `payload.metadata["0"]` with `image_id`,
+   `fbid`, `filename`, `filetype`, `src`. Other form parts after the file were not
+   visible (the body view may stop at binary data), so whether `fb_dtsg`/`lsd` are
+   form parts is unknown.
+2. **Send** is GraphQL `WmiSlideMediaMessageMutation`, doc id `28008426122167348`, with
+   variables `thread_fbid`, `offline_threading_id`, `media: {attachment_type,
+   media_fbid}`, `replied_to_message_id: null`, `logging_data: null`. The response
+   `data.send_slide_media_message` has `message_id`, `timestamp_ms`,
+   `content_type` and `as_micg_interface` with sender and `content.images[]`.
+3. A Node read of the chat then showed one `image` message, 400×400, with a URL.
+
+Two further attach-only checks repeated step 1 and were removed without sending
+(the second removal was confirmed; the first was dropped by closing the tab).
+Not established: an SDK upload or media send from Node, which `media_fbid`
+source (`fbid` or `image_id`) the send uses, the `attachment_type` value, caption
+support, multiple photos, size limits, and receipt on the third account's side.
+
 ### E5-SDK-FRESH-RECONNECT-20261029 — fresh manual connection received a new message
 
 After the earlier bounded test expired, the owner explicitly opted into a new
