@@ -56,7 +56,7 @@ try {
   assert.deepEqual(demo, { conversations: 1, messages: 1, liveRequests: 0, messagesSent: 0 });
   writeFileSync(join(consumer, 'consumer.mts'), `import { ThreadsDmReader, ThreadsDmIncoming, ThreadsTextSendAttempt, createThreadsReadHandler, createThreadsSendHandler, createFileThreadsSendJournal, type DmMessage, type ThreadsIncomingSession } from 'threads-private-api';
 const api = [ThreadsDmReader, ThreadsDmIncoming, ThreadsTextSendAttempt, createThreadsReadHandler, createThreadsSendHandler, createFileThreadsSendJournal];
-const message: DmMessage = {messageId:'synthetic',threadFbid:'synthetic',senderFbid:'synthetic',timestampMs:'1',content:'synthetic'};
+const message: DmMessage = {kind:'text',messageId:'synthetic',threadFbid:'synthetic',senderFbid:'synthetic',timestampMs:'1',content:'synthetic'};
 const incoming: ThreadsIncomingSession = {url:'wss://example.invalid',cookie:'synthetic=value',userAgent:'synthetic',initialPackets:[]};
 void api; void message; void incoming;
 `);

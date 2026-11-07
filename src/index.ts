@@ -35,6 +35,8 @@ export {
 export type {
   ThreadSummary,
   DmMessage,
+  TextDmMessage,
+  UnsupportedDmMessage,
   PageInfo,
   ThreadListPage,
   MessageListPage,

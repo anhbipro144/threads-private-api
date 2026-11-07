@@ -105,6 +105,7 @@ test('parseMessageList maps as_micg_interface fields', () => {
   const page = parseMessageList(messageListData);
   assert.equal(page.messages.length, 1);
   assert.deepEqual(page.messages[0], {
+    kind: 'text',
     messageId: 'm-1',
     threadFbid: 'thread-1',
     senderFbid: 'user-A',
@@ -123,13 +124,24 @@ test('parsers throw on malformed shapes instead of returning partial data', () =
   );
 });
 
-test('text content comes from the observed content.text_body object; unsupported content fails closed', () => {
+test('text comes from content.text_body; anything else is kept as an unsupported message', () => {
   for (const content of ['hello', null, { text_body: null }, { attachment: {} }]) {
     const data = structuredClone(messageListData);
     const message = data.get_slide_thread.messages.edges[0]!.node.as_micg_interface;
     Object.assign(message, { content });
-    assert.throws(() => parseMessageList(data), /text content object|content\.text_body/);
+    assert.deepEqual(parseMessageList(data).messages, [
+      { kind: 'unsupported', messageId: 'm-1', threadFbid: 'thread-1', senderFbid: 'user-A', timestampMs: '1000' },
+    ]);
   }
+});
+
+test('a mixed text and photo page parses without failing', () => {
+  const data = structuredClone(messageListData);
+  const edge = data.get_slide_thread.messages.edges[0]!;
+  const photo = structuredClone(edge);
+  Object.assign(photo.node.as_micg_interface, { message_id: 'm-2', content: { attachment: {} } });
+  data.get_slide_thread.messages.edges.push(photo);
+  assert.deepEqual(parseMessageList(data).messages.map(m => [m.messageId, m.kind]), [['m-1', 'text'], ['m-2', 'unsupported']]);
 });
 
 test('ThreadsDmReader.listThreads replays the request and parses', async () => {

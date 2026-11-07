@@ -19,14 +19,25 @@ export interface ThreadSummary {
   readonly id: string;
 }
 
-/** One message in a conversation. */
-export interface DmMessage {
+interface DmMessageBase {
   readonly messageId: string;
   readonly threadFbid: string;
   readonly senderFbid: string;
   readonly timestampMs: string;
+}
+
+export interface TextDmMessage extends DmMessageBase {
+  readonly kind: 'text';
   readonly content: string;
 }
+
+/** A message without observed text (photo, video, ...). Kept so one never breaks a read. */
+export interface UnsupportedDmMessage extends DmMessageBase {
+  readonly kind: 'unsupported';
+}
+
+/** One message in a conversation. */
+export type DmMessage = TextDmMessage | UnsupportedDmMessage;
 
 /** Relay-style forward-pagination cursor. */
 export interface PageInfo {
@@ -176,14 +187,15 @@ export function parseMessageList(data: Record<string, unknown>, expectedThreadId
     const threadFbid = requireString(node['thread_fbid'], `message[${i}].thread_fbid`);
     if (expectedThreadId !== undefined && threadFbid !== expectedThreadId) throw new Error('Threads read: unexpected conversation');
     const content = node['content'];
-    if (!isObject(content)) throw new Error(`Threads read: message[${i}] has no text content object`);
-    return {
+    const base = {
       messageId: requireString(node['message_id'], `message[${i}].message_id`),
       threadFbid,
       senderFbid: requireString(node['sender_fbid'], `message[${i}].sender_fbid`),
       timestampMs: requireString(node['timestamp_ms'], `message[${i}].timestamp_ms`),
-      content: requireString(content['text_body'], `message[${i}].content.text_body`),
     };
+    return isObject(content) && typeof content['text_body'] === 'string'
+      ? { kind: 'text' as const, ...base, content: content['text_body'] }
+      : { kind: 'unsupported' as const, ...base };
   });
   return { messages, pageInfo: parsePageInfo(connection as Record<string, unknown>) };
 }

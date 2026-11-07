@@ -18,7 +18,9 @@ The work is limited to the owner's authenticated accounts and consented test con
 
 ## Authorization and privacy
 
-- Use only the two owner-controlled test accounts and the agreed test conversation.
+- Use only the three owner-controlled test accounts (the shop's account and two customer
+  accounts) and the agreed test conversations: the existing one, and one between the
+  shop's account and the third account. Handles stay out of the repository.
 - The owner performs authentication. Never bypass login challenges, access controls, or platform protections.
 - Never inspect unrelated conversations, collect third-party private data, or perform bulk messaging.
 - Obtain explicit approval for each live message, including sender, recipient, exact content, and send count.

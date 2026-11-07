@@ -1,6 +1,6 @@
 import { parseMessageList, type DmMessage } from './threads-dm-read.ts';
 
-// Local resource limits for this text-only receiver, not platform limits.
+// Local resource limits for this receiver, not platform limits.
 export const MAX_INCOMING_BYTES = 1024 * 1024;
 export function check(value: unknown): asserts value {
   if (!value) throw new Error('Threads incoming: invalid protocol data');

@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- `DmMessage` is now a union: `kind: 'text'` (with `content`) or `kind: 'unsupported'`
+  (ID, sender and time only). Non-text messages no longer fail a read or stop a receiver.
+  Breaking for code that reads `content` without checking `kind`.
+- Receiver delivers callbacks one at a time, in order. `callback-failed` errors carry
+  `messageId`. The 10,000-ID dedupe set evicts the oldest ID instead of stopping.
+
 ## 0.3.0-beta.1
 
 - Package the typed reader, single-attempt text sender, HTTP handlers and incoming

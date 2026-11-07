@@ -12,16 +12,19 @@ export interface ThreadsIncomingSession {
 export type ThreadsIncomingState = 'configured' | 'connecting' | 'ready' | 'stopped' | 'failed';
 export class ThreadsIncomingError extends Error {
   readonly reason: 'invalid-session' | 'protocol-rejected' | 'reconnect-required' | 'connection-failed' | 'timeout' | 'stopped' | 'callback-failed';
-  constructor(reason: ThreadsIncomingError['reason']) {
+  /** Set on `callback-failed`: the message the host callback did not accept, so the host can recover it by reading. */
+  readonly messageId: string | undefined;
+  constructor(reason: ThreadsIncomingError['reason'], messageId?: string) {
     super(`Threads incoming: ${reason}`);
     this.name = 'ThreadsIncomingError';
     this.reason = reason;
+    this.messageId = messageId;
   }
 }
 export interface ThreadsIncomingOptions {
   readonly session: ThreadsIncomingSession;
   readonly threadId: string;
-  /** Only text messages from threadId are delivered; callback rejection stops the receiver. */
+  /** Messages from threadId are delivered one at a time, in order; callback rejection stops the receiver. */
   readonly onMessage: (message: DmMessage) => void | Promise<void>;
   readonly seenMessageIds?: readonly string[];
   readonly socketFactory?: (url: string, options: { headers: Record<string, string> }) => WebSocket;
@@ -47,6 +50,7 @@ export class ThreadsDmIncoming {
   #subscribed = false;
   #lastReceived = 0;
   #seen = new Map<string, string | null>();
+  #deliveries: Promise<void> = Promise.resolve();
   #deadline: ReturnType<typeof setTimeout> | undefined;
   #ping: ReturnType<typeof setInterval> | undefined;
   #ready = Promise.withResolvers<void>();
@@ -89,8 +93,8 @@ export class ThreadsDmIncoming {
       this.#initialAck = data.ackId!;
       this.#requestId = envelope['request_id'];
       const seen = options.seenMessageIds ?? [];
-      check(seen.length <= 10000 && seen.every(id => typeof id === 'string' && id.length > 0));
-      for (const id of seen) this.#seen.set(id, null);
+      check(seen.every(id => typeof id === 'string' && id.length > 0));
+      for (const id of seen.slice(-10000)) this.#seen.set(id, null);
       this.#session = { url: session.url, cookie: session.cookie, userAgent: session.userAgent, initialPackets: [] };
     } catch {
       this.#packets.forEach(p => p.fill(0));
@@ -125,10 +129,10 @@ export class ThreadsDmIncoming {
     this.#ready.reject(new ThreadsIncomingError('stopped'));
     this.#closed.resolve();
   }
-  #fail(reason: ThreadsIncomingError['reason']): void {
+  #fail(reason: ThreadsIncomingError['reason'], messageId?: string): void {
     if (this.#state === 'stopped' || this.#state === 'failed') return;
     this.#state = 'failed';
-    this.#failure = new ThreadsIncomingError(reason);
+    this.#failure = new ThreadsIncomingError(reason, messageId);
     this.#cleanup();
     this.#ready.reject(this.#failure);
     this.#closed.reject(this.#failure);
@@ -202,11 +206,13 @@ export class ThreadsDmIncoming {
               check(previous === null || previous === digest);
               continue;
             }
-            check(this.#seen.size < 10000);
+            // Oldest-first eviction; durable dedupe belongs to the host.
+            if (this.#seen.size >= 10000) this.#seen.delete(this.#seen.keys().next().value!);
             this.#seen.set(message.messageId, digest);
-            try {
-              void Promise.resolve(this.#onMessage!(message)).catch(() => this.#fail('callback-failed'));
-            } catch { this.#fail('callback-failed'); break; }
+            const callback = this.#onMessage!;
+            this.#deliveries = this.#deliveries.then(async () => {
+              if (this.#state === 'ready') await callback(message);
+            }).catch(() => this.#fail('callback-failed', message.messageId));
           }
         }
         this.#maybeReady();

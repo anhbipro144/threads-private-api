@@ -68,6 +68,7 @@ test('preparing discloses exact review only to owner and never sends; confirmati
   const result = await first.json();
   assert.equal(result.status, 'acknowledged');
   assert.equal(result.requiresReceiptCheck, true);
+  assert.equal(typeof result.acknowledgement.messageId, 'string');
   assert.deepEqual(await second.json(), result);
   assert.equal(s.calls.length, 1);
   assert(!JSON.stringify(result).includes('synthetic-cookie'));

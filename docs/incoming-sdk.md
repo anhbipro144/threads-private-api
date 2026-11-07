@@ -59,8 +59,10 @@ clears timers/listeners/session references/buffers and prevents further callback
 Stopped or failed instances cannot reconnect; make a new instance with fresh
 owner-supplied session state after reconciling missed messages using the reader.
 No automatic reconnect, resnapshot, credential renewal or provider retry exists.
-Callbacks run in arrival order; asynchronous callback completion is not serialized.
-Throwing or rejecting a callback stops the receiver without replaying that event.
+Callbacks run one at a time in arrival order; each is awaited before the next.
+Throwing or rejecting a callback stops the receiver without replaying that event;
+the `callback-failed` error carries `messageId` so the host can recover it by reading.
+Messages without text arrive as `kind: 'unsupported'` (ID, sender, time only).
 
 Within one connection, message IDs are suppressed after first delivery; conflicting
 repeated text-message representations stop the connection. `seenMessageIds` can
@@ -70,8 +72,9 @@ delivery. Message content is not retained for deduplication; only its hash and I
 Non-message edits/reactions/deletes do not update already displayed messages.
 
 Local resource limits are conservative: 1 MiB per frame, 2 MiB for a received
-buffer, 4096 frames/fields/deltas per parsed batch and 10000 known message IDs.
-Exceeding a bound stops instead of dropping validation or forgetting dedupe state.
+buffer and 4096 frames/fields/deltas per parsed batch. Exceeding one stops the
+receiver. The dedupe set holds 10000 IDs and evicts the oldest; durable dedupe
+across restarts belongs to the host's database.
 Initial capture is limited to 32 KiB/four send packets. Startup has a 20-second
 deadline; keepalive sends every 10 seconds and stops after 30 seconds without
 received traffic. These are client bounds, not discovered platform limits.

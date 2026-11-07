@@ -19,7 +19,7 @@ function setup(overrides: Partial<ThreadsReadHandlerOptions> = {}) {
       async listMessages(threadId, cursor) {
         calls.push(['messages', threadId, cursor]);
         return {
-          messages: [{ messageId: 'm1', threadFbid: threadId, senderFbid: 'test-owner', timestampMs: '1000', content: 'synthetic text' }],
+          messages: [{ kind: 'text' as const, messageId: 'm1', threadFbid: threadId, senderFbid: 'test-owner', timestampMs: '1000', content: 'synthetic text' }],
           pageInfo: { hasNextPage: false, endCursor: null },
         };
       },
@@ -112,7 +112,7 @@ test('inconsistent message thread IDs are rejected before exposing contents', as
       async listThreads() { throw new Error('unused'); },
       async listMessages() {
         return {
-          messages: [{ messageId: 'm2', threadFbid: 'excluded-chat', senderFbid: 'other', timestampMs: '1000', content: 'do not expose' }],
+          messages: [{ kind: 'text' as const, messageId: 'm2', threadFbid: 'excluded-chat', senderFbid: 'other', timestampMs: '1000', content: 'do not expose' }],
           pageInfo: { hasNextPage: false, endCursor: null },
         };
       },

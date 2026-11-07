@@ -80,7 +80,8 @@ test('receiver replays a private copy once, filters scope, deduplicates and stop
   const incoming = frame(13, delta([entry('already-read'), entry('other', 'other-chat'), entry()]), 1, 9, true);
   for (const byte of incoming) context.socket.receive(Uint8Array.of(byte));
   context.socket.receive(incoming);
-  assert.deepEqual(messages, [{ messageId: 'message-1', threadFbid: 'test-chat', senderFbid: 'test-B', timestampMs: '1000', content: 'synthetic text' }]);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(messages, [{ kind: 'text', messageId: 'message-1', threadFbid: 'test-chat', senderFbid: 'test-B', timestampMs: '1000', content: 'synthetic text' }]);
   context.receiver.stop(); context.receiver.stop(); await context.receiver.closed;
   context.socket.receive(incoming); context.socket.dispatchEvent(new Event('error'));
   assert.equal(messages.length, 1);
@@ -138,19 +139,45 @@ test('errors/closure after readiness and synchronous/asynchronous callback failu
   }
   for (const callback of [() => { throw Error('secret'); }, async () => { throw Error('secret'); }]) {
     const { receiver, socket } = await ready(callback); socket.receive(frame(13, delta([entry()])));
-    await assert.rejects(receiver.closed, reason('callback-failed'));
+    await assert.rejects(receiver.closed, error => error instanceof ThreadsIncomingError &&
+      error.reason === 'callback-failed' && error.messageId === 'message-1' && !error.message.includes('secret'));
   }
 });
 
-test('callback stop prevents later batch deliveries; dedupe cap stops instead of forgetting IDs', async () => {
+test('callbacks run one at a time in order; an unsupported message is delivered, not fatal', async () => {
+  const order: string[] = [];
+  let running = 0;
+  const context = await ready(async message => {
+    assert.equal(++running, 1); order.push(message.messageId + ':' + message.kind);
+    await new Promise(resolve => setImmediate(resolve)); running--;
+  });
+  const photo = entry('photo'); Object.assign(photo.message.as_micg_interface, { content: { attachment: {} } });
+  context.socket.receive(frame(13, delta([entry('one'), photo, entry('three')])));
+  while (order.length < 3) await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(order, ['one:text', 'photo:unsupported', 'three:text']);
+  context.receiver.stop();
+});
+
+test('callback stop prevents later batch deliveries; a full dedupe set evicts the oldest ID', async () => {
   const received: DmMessage[] = [];
   const context = await ready(message => { received.push(message); context.receiver.stop(); });
   context.socket.receive(frame(13, delta([entry('one'), entry('two')])));
   await context.receiver.closed; assert.equal(received.length, 1);
-  const full = setup(() => { assert.fail('must not deliver beyond dedupe bound'); }, Array.from({ length: 10000 }, (_, i) => 'seen-' + i));
+  const delivered: string[] = [];
+  const full = setup(m => { delivered.push(m.messageId); }, Array.from({ length: 10000 }, (_, i) => 'seen-' + i));
   const start = full.receiver.start(); full.socket.authenticate(); await start;
-  full.socket.receive(frame(13, delta([entry()])));
-  await assert.rejects(full.receiver.closed, reason('protocol-rejected'));
+  full.socket.receive(frame(13, delta([entry('seen-9999'), entry()])));
+  while (delivered.length < 1) await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(delivered, ['message-1']);
+  assert.equal(full.receiver.state, 'ready');
+  full.receiver.stop();
+  const oversized: string[] = [];
+  const seeded = setup(m => { oversized.push(m.messageId); }, Array.from({ length: 10001 }, (_, i) => 'seen-' + i));
+  const seededStart = seeded.receiver.start(); seeded.socket.authenticate(); await seededStart;
+  seeded.socket.receive(frame(13, delta([entry('seen-10000'), entry('seen-0')])));
+  while (oversized.length < 1) await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(oversized, ['seen-0']);
+  seeded.receiver.stop();
 });
 
 test('startup and idle deadlines close once; explicit stop removes ping activity', async t => {
