@@ -303,6 +303,34 @@ expose reactions or edit history, and has no send method for these actions. Not
 established: what live deltas carry for each, the customer's own edits/unsends/
 reactions, reaction removal, the edit time window, and read receipts.
 
+### E16-E18-CUSTOMER-LIVE-20261107 — customer actions in live deltas, and mark-read
+
+With `ThreadsDmIncoming` listening on the second test chat (tapped to log each matching
+delta's `__typename` and field names, no values), the owner, as the third account, sent
+one text, reacted to it, edited it and unsent it, then sent a second text. The listener
+polled the inbox every 20 s. **OBSERVED**, one event each:
+
+| Customer action | Delta `__typename` | Fields |
+| --- | --- | --- |
+| New text | `SlideUQPPNewMessage` | as before; one SDK callback each |
+| React | `SlideUQPPCreateReaction` | `message_id`, `reacted_to_message_sender_fbid`, `reaction: {reaction, sender_fbid, reaction_timestamp_ms, log_message_id}` |
+| Edit | `SlideUQPPEditMessage` | `message_id`, `slide_edit_history_entry: {body, timestamp_ms}` (body = the new text) |
+| Unsend | `SlideUQPPDeleteMessage` | `message_id`, `latest_snippet_activity_context: {actor_fbid, target_message_id, timestamp_ms, type}` |
+| Shop opened the chat | `SlideUQPPMarkRead` | `thread_fbid`, `offline_threading_id` |
+
+All carry `uq_seq_id`, `thread_fbid` and `offline_threading_id`. The receiver ignores all
+but new messages, so it does not report reactions, edits or unsends yet.
+
+**Unread state:** the inbox thread node has `is_unread` and `read_receipts[].watermark_timestamp_ms`
+(one per member). A new customer text set `is_unread: true` within one poll. A Node
+`listMessages` of the chat left it unread and no watermark moved, so **SDK reads do not
+mark a chat read** (REPRODUCED once). Unsending the only unread text set `is_unread: false`
+with no watermark change. Opening the chat in the web UI sent
+`WmiSlideThreadMutationsMarkReadMutation` (doc id `28922846890740640`, variables
+`thread_fbid`, `timestamp_ms`; sent twice), after which `is_unread` was false and the shop's
+watermark advanced. Not established: a Node mark-read, what the customer sees as "seen",
+and reaction removal.
+
 ### E5-SDK-FRESH-RECONNECT-20261029 — fresh manual connection received a new message
 
 After the earlier bounded test expired, the owner explicitly opted into a new
