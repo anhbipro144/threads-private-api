@@ -84,6 +84,34 @@ the SDK connected. Output was sanitized; nothing was saved.
 Not checked: multi-image messages, long-running use, story replies, video, voice and
 stickers. The approvals for both messages are consumed.
 
+### E19-REUSED-SETUP-20261107 — a second receiver from 5-minute-old setup packets
+
+The owner approved one customer-to-shop text in the agreed chat and sent it by hand,
+then unsent it. The agent sent nothing. The same private helper captured the session
+and incoming setup once, closed its tab and disconnected DevTools. A first
+`ThreadsDmIncoming` reached `ready` and was stopped. After a 300-second gap, a new
+instance using **the same captured packets**, with no browser step, reached `ready`
+(packet age 315 seconds) and delivered one `text` callback when the owner sent.
+
+**REPRODUCED, once:** replaying an unchanged setup on a new connection after a stop.
+A later read did not contain the message because the owner had unsent it, so the
+callback was matched only by timing and the owner's report. The unsend produced no
+callback. Not established: how old a setup can be, behaviour after a provider drop,
+or after the browser closes. A Node-built setup (new cursor or request ID) was not tried.
+
+### E14-NEW-CHAT-20261107 — a new customer's first message
+
+In the same run, the owner approved one first text from the third test account to
+the shop, a new chat, and sent it by hand. The shop's app showed it under **Message
+requests**, not the inbox. The receiver only describes its one agreed chat; a tap on
+the same connection counted entries from any other chat by type only, and described
+only the third account's entries by structure.
+
+**Not observed:** the tap saw no entries from any other chat, of any type, during the
+connection. When the message arrived relative to the connection's end is unclear, so
+this does not yet show that request-folder messages are absent from the subscription.
+Not checked: the request read shape, accepting a request, or replying to one.
+
 ### E5-SDK-FRESH-RECONNECT-20261029 — fresh manual connection received a new message
 
 After the earlier bounded test expired, the owner explicitly opted into a new

@@ -121,12 +121,12 @@ One controlled run per experiment, recording sanitized shapes only. Results go i
 | E11 | What do non-text messages look like, in reads and deltas? | Ran 2026-11-07 for image, link and shared post in live deltas (`E11-NON-TEXT-20261107`). The owner then limited SDK support to images and shared posts; the compiled SDK read and received both live (`E11-SDK-NON-TEXT-20261107`). Links read as `text` but arrive live as `unsupported`. Story replies, video, voice and stickers are untested |
 | E12 | Where do name, username and avatar come from? Is the ID stable? | Observe the members query and thread list fields in the owner's browser |
 | E13 | How does the mailbox page, and which folders exist? | Observe inbox scrolling and folder switching |
-| E14 | What happens when a new person writes first? | C opens a new chat with A. Check the delta, folder, and whether accepting a request is needed before replying |
+| E14 | What happens when a new person writes first? | Ran 2026-11-07 (`E14-NEW-CHAT-20261107`): the first message landed in **Message requests**. No delta from it was seen on the receiver's connection, but timing was unclear. Rerun with the watcher open before sending; then check the request read and accepting |
 | E15 | Can one session serve many chats? | Read and send in the second chat by substituting `thread_fbid`, and find how to obtain the Relay node ID |
 | E16 | What do edits, unsends, reactions and read receipts emit? | One action each, observing delta `__typename` |
 | E17 | How do photo upload and send work? | One approved UI image send; record the upload and mutation shape |
 | E18 | How do quote replies and mark-read work? Do SDK reads mark a chat read? | One approved quote reply; observe mark-read; compare read state after a Node read |
-| E19 | Can Node open a new subscription with no browser? | After a stop, try only values observed in reads and setup queries. If rejected, record it and stop: this decides Phase 4's design |
+| E19 | Can Node open a new subscription with no browser? | Partly, 2026-11-07 (`E19-REUSED-SETUP-20261107`): a new receiver reusing 5-minute-old setup packets connected with no browser and received a message. Untested: older packets, after a provider drop or browser close |
 | E20 | How long does a session last, and what ends it? | Low-frequency owner-initiated reads over days, noting the signal at real expiry and after a browser logout |
 
 **Done when:** each row has an evidence level and a written result, including "not
