@@ -160,6 +160,30 @@ Node read**, with no duplicate over 20 seconds. **REPRODUCED:** once accepted, a
 customer's chat behaves like any other chat for the receiver. Not observed: the
 accept request itself, what the third item is, and replying from the shop.
 
+### E12-IDENTITY-20261107 — where customer name, username and avatar come from
+
+No messages. The helper opened its own tab, captured the agreed chat's message-list
+form and the `PENDING` inbox-list form, and disconnected DevTools. The page HTML
+contained one other folder value, `INBOX`; the `PENDING` form with `folder: "INBOX"`
+returned three inbox chats from Node, including the accepted request chat. Only field
+paths and types were printed, never values. **REPRODUCED** in Node:
+
+- **Inbox list** (`threads_by_folder.edges[].node`): `members.nodes[].as_micg_interface`
+  has `id`, `igid`, `name`, `username`, `profile_pic_uri`, `is_verified`,
+  `linked_ig_user_igid` and `user_dict.id`. Each chat also carries its latest
+  messages with a `sender` object, and `read_receipts[].participant_fbid`.
+- **Message list** (`get_slide_thread`): `members.nodes[]` and `participants.nodes[]`
+  with the same identity fields, and per message `sender_fbid` plus a `sender`
+  object with `id`, `name`, `username`, `profile_pic_uri`, `is_verified`.
+- So the inbox list alone is enough to show a customer's name, username and avatar.
+- **The extra item after accepting** was `unsupported`, content type
+  `THMessageXMATContent`, ordered between the second and third test texts. It is
+  probably an accept notice; its fields were not inspected.
+
+Not established: which identity field equals `sender_fbid`, whether IDs stay stable
+across sessions or name changes, and avatar URL lifetime. The inbox's third chat was
+not inspected.
+
 ### E5-SDK-FRESH-RECONNECT-20261029 — fresh manual connection received a new message
 
 After the earlier bounded test expired, the owner explicitly opted into a new
