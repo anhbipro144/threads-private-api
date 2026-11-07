@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `ThreadSummary` adds `members` (`ThreadMember`: `id`, `username`, `name`, `avatarUrl`) and
+  `unread`, read from the inbox list (E12, E21). Breaking only for code that builds
+  `ThreadSummary` values itself.
 - `DmMessage` is now a union: `kind: 'text'` (with `content`) or `kind: 'unsupported'`
   (ID, sender and time only). Non-text messages no longer fail a read or stop a receiver.
   Breaking for code that reads `content` without checking `kind`.
@@ -17,7 +20,8 @@
 - `ThreadsDmIncoming` takes `onChange` for reactions, reaction removals, edits, unsends and
   reads in the conversation (`DmChange`). Reactions, removals and reads checked live once.
 - `markThreadRead` marks a conversation read by replaying a captured mark-read form with
-  `timestamp_ms` set to now. Checked live once.
+  `timestamp_ms` set to now. Checked live once. `threadId` marks another chat with the
+  same form, checked live once (E21).
 
 ## 0.3.0-beta.1
 

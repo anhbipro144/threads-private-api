@@ -5,6 +5,9 @@
 Create `ThreadsDmReader` with a caller-supplied session, or adapt exact observed
 forms/headers with `sessionFromCapturedForms()`. `listThreads()` and
 `listMessages(threadId)` return one page. Render private results only to the owner.
+Each thread from `listThreads()` has `members` (`id`, `username`, `name`, `avatarUrl`; the
+shop's own account included) and `unread` when the provider sends it. Members without an
+ID or username are left out.
 
 Older messages need the separate captured `messagePaginationBody` for the same
 conversation. Its Relay node ID differs from `thread_fbid`; preserve that ID.
@@ -32,7 +35,9 @@ return `repliedToMessageId` on quote replies; the receiver does not yet.
 the `WmiSlideThreadMutationsMarkReadMutation` form the web client sends when that chat is
 opened; only `timestamp_ms` is replaced. Reads never mark a chat read. The client sends that
 form only when opening an unread chat. One request, no retry; checked live once with a form
-from the same page load (E16-E18-SDK-LIVE-20261107).
+from the same page load (E16-E18-SDK-LIVE-20261107). Pass `threadId` to mark a different
+chat with the same form; checked live once (E21-MARK-READ-ANY-CHAT-20261107). A form held for
+one hour still worked once (E22-MARK-READ-LIFETIME-20261107).
 
 `new ThreadsImageSendAttempt({ capture, image })` sends one photo (a `Blob`): one
 upload to `/ajax/mercury/upload.php`, then one `WmiSlideMediaMessageMutation`.

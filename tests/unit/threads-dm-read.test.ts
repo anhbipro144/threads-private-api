@@ -115,6 +115,22 @@ test('parseMessageList maps as_micg_interface fields', () => {
   assert.deepEqual(page.pageInfo, { hasNextPage: false, endCursor: null });
 });
 
+test('parseThreadList reads unread state and members, skipping unusable ones', () => {
+  const page = parseThreadList({ get_slide_mailbox_for_iris_subscription: { threads_by_folder: {
+    edges: [{ node: { id: 'thread-1', as_micg_interface: { is_unread: true }, members: { nodes: [
+      { as_micg_interface: { id: 'user-A', username: 'shop', name: 'Shop', profile_pic_uri: 'https://example.test/a.jpg' } },
+      { as_micg_interface: { id: 'user-B', username: 'buyer', profile_pic_uri: 'http://example.test/b.jpg' } },
+      { as_micg_interface: { id: 'user-C' } }, 'bad',
+    ] } } }],
+    page_info: { has_next_page: false, end_cursor: null },
+  } } });
+  assert.deepEqual(page.threads, [{ id: 'thread-1', unread: true, members: [
+    { id: 'user-A', username: 'shop', name: 'Shop', avatarUrl: 'https://example.test/a.jpg' },
+    { id: 'user-B', username: 'buyer', name: '', avatarUrl: null },
+  ] }]);
+  assert.deepEqual(parseThreadList(threadListData).threads[0], { id: 'thread-1', members: [] });
+});
+
 test('parsers throw on malformed shapes instead of returning partial data', () => {
   assert.throws(() => parseThreadList({}), /missing mailbox/);
   assert.throws(() => parseMessageList({ get_slide_thread: { messages: {} } }), /missing edges/);

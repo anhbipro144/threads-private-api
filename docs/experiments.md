@@ -788,6 +788,37 @@ by at least five seconds. Keep session values out of the
 transcript, repository and context-mode knowledge base. Obtain sender/recipient,
 exact content and count authorization separately before E4.
 
+## E22-MARK-READ-LIFETIME-20261107 — a mark-read form one hour later
+
+Run 2026-11-07, same accounts and owned-tab method. Chat B's customer sent one message;
+opening chat B in the owned tab sent `WmiSlideThreadMutationsMarkReadMutation`, which was
+captured and held in memory only, never written to disk. Over the next 60 minutes an inbox
+read from Node every 10 minutes succeeded (6 of 6). Then chat A's customer sent one message
+and chat A showed `is_unread: true`. One `markThreadRead` call with the held form and
+`threadId` set to chat A succeeded; 15 s later chat A showed `is_unread: false`.
+**REPRODUCED** once: a captured mark-read form and the inbox-read form both still worked
+after one hour. Not yet: longer holds, a form from a browser session that has since
+reloaded or logged out, or what the customer sees as seen.
+
+## E21-MARK-READ-ANY-CHAT-20261107 — Mailbox folders from Node and mark-read for another chat
+
+Run 2026-11-07 on the shop test account with two test customers, in an owned tab of the
+owner's Chrome, closed after capture. Only counts and read flags were logged.
+
+- **Folders (E13):** the page lists one folder, `INBOX`. Message requests loads
+  `BarcelonaMessagesThreadListMailboxQuery` with `folder: "PENDING"`. Node replayed it:
+  0 chats, `hasNextPage: false`. The inbox list request did not fire on load, so Node used
+  the PENDING form with `folder: "INBOX"`: 3 chats, `hasNextPage: false`, an end cursor
+  present. REPRODUCED once. Scrolling the inbox found no scrollable list and sent no request;
+  paging past the first page is untested because the test inbox fits on one page.
+- **Mark-read for another chat (E18):** both customers sent one message, so both chats
+  showed `is_unread: true`. Opening chat B in the owned tab sent
+  `WmiSlideThreadMutationsMarkReadMutation` for chat B, which was captured; chat B turned
+  read. Chat A stayed unread. One Node POST of that form with `thread_fbid` set to chat A
+  succeeded (`slide_mark_thread_read` present); 15 s later chat A showed `is_unread: false`.
+  REPRODUCED once. `markThreadRead` takes `threadId` for this. Not yet: a form from an
+  earlier page load, or what the customer sees as seen.
+
 ## E1–E3 — Browser-closed Node reproduction (passed)
 
 Discovery ID: E123-NODE-20261028

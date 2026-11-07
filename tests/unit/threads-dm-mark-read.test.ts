@@ -30,6 +30,16 @@ test('one request keeps the captured chat and session, with timestamp_ms set to 
   assert.deepEqual(calls[0]!.headers, capture().headers);
 });
 
+test('threadId marks another conversation with the same captured form', async () => {
+  let body = '';
+  await markThreadRead({ capture: capture(), threadId: 'thread-B', fetchImpl: (async (_url: string, init: RequestInit) => {
+    body = String(init.body);
+    return new Response(JSON.stringify({ data: { slide_mark_thread_read: {} } }));
+  }) as typeof fetch });
+  assert.equal(JSON.parse(new URLSearchParams(body).get('variables')!).thread_fbid, 'thread-B');
+  await assert.rejects(markThreadRead({ capture: capture(), threadId: '', fetchImpl: (async () => assert.fail('no request expected')) as typeof fetch }), /threadId must be nonempty/);
+});
+
 test('rejects other captures before any request', async () => {
   const fetchImpl = (async () => assert.fail('no request expected')) as typeof fetch;
   for (const bad of [capture(undefined, 'WmiSlideTextMessageMutation'), capture({ timestamp_ms: '1' }), capture({ thread_fbid: 'thread-A', extra: 1 })]) {

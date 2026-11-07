@@ -15,8 +15,20 @@
 export const THREADS_GRAPHQL_ENDPOINT = 'https://www.threads.com/api/graphql';
 
 /** A single conversation in the inbox listing. */
+/** A chat member from the inbox list; the shop's own account is one of them (E12-IDENTITY-20261107). */
+export interface ThreadMember {
+  readonly id: string;
+  readonly username: string;
+  readonly name: string;
+  readonly avatarUrl: string | null;
+}
+
 export interface ThreadSummary {
   readonly id: string;
+  /** `as_micg_interface.is_unread`, when present (E21-MARK-READ-ANY-CHAT-20261107). */
+  readonly unread?: boolean;
+  /** Members with a usable ID and username; others are left out. */
+  readonly members: readonly ThreadMember[];
 }
 
 interface DmMessageBase {
@@ -190,7 +202,16 @@ export function parseThreadList(data: Record<string, unknown>): ThreadListPage {
     if (!isObject(edge) || !isObject(edge['node'])) {
       throw new Error(`Threads read: bad thread edge at index ${i}`);
     }
-    return { id: requireString(edge['node']['id'], `thread[${i}].id`) };
+    const node = edge['node'], unread = isObject(node['as_micg_interface']) ? node['as_micg_interface']['is_unread'] : undefined;
+    const nodes = isObject(node['members']) && Array.isArray(node['members']['nodes']) ? node['members']['nodes'] : [];
+    const members: ThreadMember[] = [];
+    for (const member of nodes) {
+      const m = isObject(member) ? member['as_micg_interface'] : undefined;
+      if (!isObject(m) || typeof m['id'] !== 'string' || !m['id'] || typeof m['username'] !== 'string' || !m['username']) continue;
+      members.push({ id: m['id'], username: m['username'], name: typeof m['name'] === 'string' ? m['name'] : '',
+        avatarUrl: typeof m['profile_pic_uri'] === 'string' && m['profile_pic_uri'].startsWith('https://') ? m['profile_pic_uri'] : null });
+    }
+    return { id: requireString(node['id'], `thread[${i}].id`), ...(typeof unread === 'boolean' ? { unread } : {}), members };
   });
   return { threads, pageInfo: parsePageInfo(connection as Record<string, unknown>) };
 }

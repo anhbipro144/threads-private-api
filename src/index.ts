@@ -39,6 +39,7 @@ export {
 } from './threads-dm-read.ts';
 export type {
   ThreadSummary,
+  ThreadMember,
   DmMessage,
   TextDmMessage,
   DmImage,

@@ -12,7 +12,7 @@ function setup(overrides: Partial<ThreadsReadHandlerOptions> = {}) {
       async listThreads(cursor) {
         calls.push(['inbox', cursor]);
         return {
-          threads: [{ id: 'test-chat' }, { id: 'excluded-chat' }],
+          threads: [{ id: 'test-chat', members: [] }, { id: 'excluded-chat', members: [] }],
           pageInfo: { hasNextPage: true, endCursor: 'next-page' },
         };
       },
@@ -50,7 +50,7 @@ test('inbox exposes only allowlisted chats, preserves the cursor, and reads one 
   assert.equal(response.headers.get('cache-control'), 'private, no-store');
   assert.equal(response.headers.get('access-control-allow-origin'), null);
   assert.deepEqual(await response.json(), {
-    threads: [{ id: 'test-chat' }],
+    threads: [{ id: 'test-chat', members: [] }],
     pageInfo: { hasNextPage: true, endCursor: 'next-page' },
   });
   assert.deepEqual(calls, [['inbox', 'page+2']]);

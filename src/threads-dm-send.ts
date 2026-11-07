@@ -133,11 +133,13 @@ export class ThreadsTextSendAttempt {
 export interface ThreadsMarkReadOptions {
   /** A `WmiSlideThreadMutationsMarkReadMutation` form for the conversation, with its headers. */
   readonly capture: ThreadsReadRequest;
+  /** Conversation to mark instead of the captured one; one form serves any chat (E21-MARK-READ-ANY-CHAT-20261107). */
+  readonly threadId?: string;
   readonly fetchImpl?: typeof fetch;
 }
 
 /**
- * Marks the captured conversation read up to now: one request, no retry (E16-E18-SDK-LIVE-20261107).
+ * Marks the conversation read up to now: one request, no retry (E16-E18-SDK-LIVE-20261107).
  * Throws `ThreadsAuthRequiredError` for an auth rejection and a value-free `Error` otherwise.
  */
 export async function markThreadRead(options: ThreadsMarkReadOptions): Promise<void> {
@@ -153,7 +155,8 @@ export async function markThreadRead(options: ThreadsMarkReadOptions): Promise<v
       Object.keys(variables).some(key => !['thread_fbid', 'timestamp_ms'].includes(key))) {
     throw new Error('Threads mark read: expected a captured mark-read form');
   }
-  form.set('variables', JSON.stringify({ ...variables, timestamp_ms: String(Date.now()) }));
+  if (options.threadId !== undefined && !nonempty(options.threadId)) throw new Error('Threads mark read: threadId must be nonempty');
+  form.set('variables', JSON.stringify({ ...variables, thread_fbid: options.threadId ?? variables['thread_fbid'], timestamp_ms: String(Date.now()) }));
   const response = await (options.fetchImpl ?? fetch)(THREADS_GRAPHQL_ENDPOINT, {
     method: 'POST', headers: { ...options.capture.headers }, body: form.toString(),
     redirect: 'error', signal: AbortSignal.timeout(30_000),
