@@ -788,6 +788,21 @@ by at least five seconds. Keep session values out of the
 transcript, repository and context-mode knowledge base. Obtain sender/recipient,
 exact content and count authorization separately before E4.
 
+## E23-ONE-CONNECTION-TWO-CHATS-20261107 — one receiver connection, two inbox chats
+
+Run 2026-11-07 on the shop test account with two test customers, both chats in the inbox.
+Setup packets came from an owned tab of the owner's Chrome, closed before listening. One
+SDK receiver was started for chat A; a tap before the chat filter logged only the chat label
+(A, B, other), the entry type and test texts. Each customer sent one test message; the shop
+opened neither chat.
+
+- Chat A's message arrived as `SlideUQPPNewMessage` and reached `onMessage`.
+- Chat B's message arrived on the same connection as `SlideUQPPNewMessage` with chat B's
+  `thread_fbid`, and the filter dropped it. One other entry
+  (`SlideUQPPNotYetImplementedMutation`, no known chat) arrived.
+- REPRODUCED once. The receiver now takes no `threadId` to deliver every chat. Not yet:
+  more than two chats, a chat that moves from Message requests to the inbox while listening.
+
 ## E22-MARK-READ-LIFETIME-20261107 — a mark-read form one hour later
 
 Run 2026-11-07, same accounts and owned-tab method. Chat B's customer sent one message;

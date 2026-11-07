@@ -150,7 +150,9 @@ possible". Revisit the rest of the plan then, since the results may change it.
 ### Phase 4: Always-on receiving (large, highest risk, needs E14, E19)
 
 - One receiver per account, covering all chats. It reports `thread.new` for unknown
-  chats instead of dropping them.
+  chats instead of dropping them. One connection carries every inbox chat
+  (`E23-ONE-CONNECTION-TWO-CHATS-20261107`); the SDK receiver without `threadId` delivers
+  them all, tagged with `threadFbid`, and the host decides what is new.
 - Reconnect after drops with capped backoff. Which design applies depends on E19:
   - **Node can subscribe alone:** the SDK reconnects by itself.
   - **It cannot:** reconnecting needs fresh packets from the owner's open browser, so

@@ -48,8 +48,11 @@ The host supplies `ThreadsIncomingSession` in memory:
 
 The host verifies account identity and the agreed conversation when collecting
 the session. A subscription can contain mailbox-wide deltas; the receiver filters
-to `threadId` before parsing or delivering message content. It does not return
-other conversations, raw envelopes, non-message deltas or provider error text.
+to `threadId` before parsing or delivering message content. Omit `threadId` to receive
+every chat on the connection: one connection carried messages from two inbox chats
+(E23-ONE-CONNECTION-TWO-CHATS-20261107), but not Message requests (E14-NEW-CHAT-20261107).
+Each message and change carries `threadFbid`; a chat the host does not know is a new chat.
+It does not return raw envelopes, non-message deltas or provider error text.
 Text, image and shared-post messages are supported, including owner-originated
 messages in that conversation. Incoming events are not permission to send replies.
 
@@ -72,7 +75,7 @@ repeated text-message representations stop the connection. `seenMessageIds` can
 seed suppression from a separately read baseline. This is local behavior, not
 evidence about provider duplicate/order guarantees or cross-restart exactly-once
 delivery. Message content is not retained for deduplication; only its hash and ID.
-Pass `onChange` to receive `DmChange` events for the conversation: `reaction` (`messageId`,
+Pass `onChange` to receive `DmChange` events, each with `threadFbid`: `reaction` (`messageId`,
 `senderFbid`, `reaction`, `timestampMs`), `unreact` (`messageId`, `senderFbid`), `edit` (`messageId`, new `content`, `timestampMs`),
 `unsend` (`messageId`) and `read` (seen after this account read the chat elsewhere; it names no
 reader). They share the message queue, are not deduplicated, and a rejection stops the receiver

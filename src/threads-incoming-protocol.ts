@@ -95,19 +95,24 @@ function single(values: Field[], id: number, wire: number): Field | undefined {
 }
 
 /** Live changes to messages in the conversation, observed once each (E16-E18-CUSTOMER-LIVE-20261107). */
-export type DmChange =
+export type DmChange = { readonly threadFbid: string } & (
   | { readonly kind: 'reaction'; readonly messageId: string; readonly senderFbid: string; readonly reaction: string; readonly timestampMs: string }
   /** Reaction removed (E16-E18-SDK-LIVE-20261107). */
   | { readonly kind: 'unreact'; readonly messageId: string; readonly senderFbid: string }
   | { readonly kind: 'edit'; readonly messageId: string; readonly content: string; readonly timestampMs: string }
   | { readonly kind: 'unsend'; readonly messageId: string }
   /** Observed after this account read the conversation elsewhere; carries no reader. */
-  | { readonly kind: 'read' };
+  | { readonly kind: 'read' });
 
 const str = (value: unknown): value is string => typeof value === 'string' && value.length > 0;
 
 // Malformed changes are skipped rather than stopping the receiver, so new messages keep flowing.
-function parseChange(entry: Record<string, unknown>): DmChange | undefined {
+function parseChange(entry: Record<string, unknown>, threadFbid: string): DmChange | undefined {
+  const change = parseChangeKind(entry);
+  return change && { threadFbid, ...change };
+}
+type ChangeKind = DmChange extends infer C ? C extends DmChange ? Omit<C, 'threadFbid'> : never : never;
+function parseChangeKind(entry: Record<string, unknown>): ChangeKind | undefined {
   const id = entry['message_id'], type = entry['__typename'];
   if (type === 'SlideUQPPMarkRead') return { kind: 'read' };
   if (!str(id)) return undefined;
@@ -137,7 +142,8 @@ export interface IncomingEnvelope {
   readonly changes: readonly DmChange[];
 }
 
-export function decodeIncomingEnvelope(bytes: Buffer, threadId: string): IncomingEnvelope {
+/** Without threadId, every chat on the connection is kept (E23-ONE-CONNECTION-TWO-CHATS-20261107). */
+export function decodeIncomingEnvelope(bytes: Buffer, threadId?: string): IncomingEnvelope {
   const envelope = json(bytes);
   check(object(envelope));
   const result = { requestId: envelope['request_id'], subscribed: false, resetRequired: false, messages: [] as DmMessage[], changes: [] as DmChange[] };
@@ -174,17 +180,18 @@ export function decodeIncomingEnvelope(bytes: Buffer, threadId: string): Incomin
       check(Array.isArray(entries) && entries.length <= 4096);
       for (const entry of entries) {
         check(object(entry));
-        if (entry['thread_fbid'] !== threadId) continue;
+        const thread = entry['thread_fbid'];
+        if (!str(thread) || (threadId !== undefined && thread !== threadId)) continue;
         if (entry['__typename'] !== 'SlideUQPPNewMessage') {
-          const change = parseChange(entry);
+          const change = parseChange(entry, thread);
           if (change) result.changes.push(change);
           continue;
         }
         check(object(entry['message']) && object(entry['message']['as_micg_interface']));
-        check(entry['message']['as_micg_interface']['thread_fbid'] === threadId);
+        check(entry['message']['as_micg_interface']['thread_fbid'] === thread);
         result.messages.push(...parseMessageList({ get_slide_thread: {
           messages: { edges: [{ node: entry['message'] }] },
-        } }, threadId).messages);
+        } }, thread).messages);
       }
     }
   }

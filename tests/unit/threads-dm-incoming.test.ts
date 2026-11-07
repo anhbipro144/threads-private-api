@@ -51,10 +51,10 @@ class Socket extends EventTarget {
     this.receive(Buffer.concat([frame(15, Buffer.from('{"code":200}')), frame(12), frame(13, envelope(1), 1, 3, true)]));
   }
 }
-function setup(onMessage: (message: DmMessage) => void | Promise<void> = () => {}, seenMessageIds: string[] = [], onChange?: (change: DmChange) => void | Promise<void>) {
+function setup(onMessage: (message: DmMessage) => void | Promise<void> = () => {}, seenMessageIds: string[] = [], onChange?: (change: DmChange) => void | Promise<void>, threadId: string | null = 'test-chat') {
   const socket = new Socket(), capture = session();
   let connections = 0;
-  const receiver = new ThreadsDmIncoming({ session: capture, threadId: 'test-chat', seenMessageIds, onMessage, ...(onChange ? { onChange } : {}),
+  const receiver = new ThreadsDmIncoming({ session: capture, ...(threadId ? { threadId } : {}), seenMessageIds, onMessage, ...(onChange ? { onChange } : {}),
     socketFactory: (url, init) => { connections++; assert.equal(url, capture.url); assert.equal(init.headers['cookie'], 'synthetic=session'); return socket as unknown as WebSocket; },
   });
   return { socket, receiver, capture, connections: () => connections };
@@ -176,11 +176,24 @@ test('reactions, edits, unsends and reads reach onChange in order after messages
   while (events.length < 6) await new Promise(resolve => setImmediate(resolve));
   await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(events, ['message:one',
-    JSON.stringify({ kind: 'reaction', messageId: 'one', senderFbid: 'test-B', reaction: '\u2764', timestampMs: '2000' }),
-    JSON.stringify({ kind: 'unreact', messageId: 'one', senderFbid: 'test-B' }),
-    JSON.stringify({ kind: 'edit', messageId: 'one', content: 'edited text', timestampMs: '3000' }),
-    JSON.stringify({ kind: 'unsend', messageId: 'one' }), JSON.stringify({ kind: 'read' })]);
+    JSON.stringify({ threadFbid: 'test-chat', kind: 'reaction', messageId: 'one', senderFbid: 'test-B', reaction: '\u2764', timestampMs: '2000' }),
+    JSON.stringify({ threadFbid: 'test-chat', kind: 'unreact', messageId: 'one', senderFbid: 'test-B' }),
+    JSON.stringify({ threadFbid: 'test-chat', kind: 'edit', messageId: 'one', content: 'edited text', timestampMs: '3000' }),
+    JSON.stringify({ threadFbid: 'test-chat', kind: 'unsend', messageId: 'one' }), JSON.stringify({ threadFbid: 'test-chat', kind: 'read' })]);
   assert.equal(context.receiver.state, 'ready');
+  context.receiver.stop();
+});
+
+test('without threadId, messages and changes from every chat arrive tagged with their chat; entries with no chat are skipped', async () => {
+  const events: string[] = [];
+  const context = setup(message => { events.push(message.threadFbid + ':' + message.messageId); }, [], change => { events.push(change.threadFbid + ':' + change.kind); }, null);
+  const starting = context.receiver.start(); context.socket.authenticate(); await starting;
+  context.socket.receive(frame(13, delta([entry('a', 'chat-A'), entry('b', 'chat-B'), { __typename: 'SlideUQPPMarkRead', thread_fbid: 'chat-B' },
+    { __typename: 'SlideUQPPMarkRead' }, { ...entry('c', 'chat-A'), thread_fbid: '' }])));
+  for (let i = 0; i < 50 && events.length < 3; i++) await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual([...events, context.receiver.state], ['chat-A:a', 'chat-B:b', 'chat-B:read', 'ready']);
+  assert.throws(() => decodeIncomingEnvelope(delta([{ ...entry('x', 'chat-A'), message: entry('x', 'chat-B').message }])));
+  assert.throws(() => new ThreadsDmIncoming({ session: session(), threadId: '', onMessage() {} }));
   context.receiver.stop();
 });
 

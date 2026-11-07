@@ -24,8 +24,9 @@ export class ThreadsIncomingError extends Error {
 }
 export interface ThreadsIncomingOptions {
   readonly session: ThreadsIncomingSession;
-  readonly threadId: string;
-  /** Messages from threadId are delivered one at a time, in order; callback rejection stops the receiver. */
+  /** One conversation; omit to receive every chat on the connection (E23-ONE-CONNECTION-TWO-CHATS-20261107). */
+  readonly threadId?: string;
+  /** Messages from threadId (or every chat) are delivered one at a time, in order; callback rejection stops the receiver. */
   readonly onMessage: (message: DmMessage) => void | Promise<void>;
   /** Reactions, edits, unsends and reads in threadId, queued with messages; not deduplicated. Rejection stops the receiver. */
   readonly onChange?: (change: DmChange) => void | Promise<void>;
@@ -39,7 +40,7 @@ export class ThreadsDmIncoming {
   #failure: ThreadsIncomingError | undefined;
   #session: ThreadsIncomingSession | undefined;
   #packets: Buffer[] = [];
-  #threadId: string;
+  #threadId: string | undefined;
   #onMessage: ThreadsIncomingOptions['onMessage'] | undefined;
   #onChange: ThreadsIncomingOptions['onChange'];
   #factory: NonNullable<ThreadsIncomingOptions['socketFactory']>;
@@ -73,7 +74,7 @@ export class ThreadsDmIncoming {
     void this.closed.catch(() => {});
     void this.#ready.promise.catch(() => {});
     try {
-      check(typeof options.threadId === 'string' && options.threadId.length > 0 && typeof options.onMessage === 'function' &&
+      check((options.threadId === undefined || (typeof options.threadId === 'string' && options.threadId.length > 0)) && typeof options.onMessage === 'function' &&
         (options.onChange === undefined || typeof options.onChange === 'function'));
       const session = options.session, url = new URL(session.url);
       check(url.protocol === 'wss:' && url.hostname === 'gateway.threads.com' && url.pathname === '/ws/lightspeed' &&
