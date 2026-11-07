@@ -72,7 +72,13 @@ repeated text-message representations stop the connection. `seenMessageIds` can
 seed suppression from a separately read baseline. This is local behavior, not
 evidence about provider duplicate/order guarantees or cross-restart exactly-once
 delivery. Message content is not retained for deduplication; only its hash and ID.
-Non-message edits/reactions/deletes do not update already displayed messages.
+Pass `onChange` to receive `DmChange` events for the conversation: `reaction` (`messageId`,
+`senderFbid`, `reaction`, `timestampMs`), `edit` (`messageId`, new `content`, `timestampMs`),
+`unsend` (`messageId`) and `read` (seen after this account read the chat elsewhere; it names no
+reader). They share the message queue, are not deduplicated, and a rejection stops the receiver
+with `callback-failed`. Malformed or unknown change shapes are skipped. Each was observed once
+live (E16-E18-CUSTOMER-LIVE-20261107); the SDK itself has not yet delivered one live. Reaction
+removal and the customer's read receipt are not observed.
 
 Local resource limits are conservative: 1 MiB per frame, 2 MiB for a received
 buffer and 4096 frames/fields/deltas per parsed batch. Exceeding one stops the

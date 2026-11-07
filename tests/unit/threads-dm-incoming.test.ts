@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { ThreadsDmIncoming, ThreadsIncomingError, type ThreadsIncomingSession, type DmMessage } from '../../src/index.ts';
+import { ThreadsDmIncoming, ThreadsIncomingError, type ThreadsIncomingSession, type DmMessage, type DmChange } from '../../src/index.ts';
 import { IncomingFrames, decodeIncomingEnvelope, MAX_INCOMING_BYTES } from '../../src/threads-incoming-protocol.ts';
 
 // Synthetic configuration, identifiers, cookies and text only. No provider calls.
@@ -51,16 +51,16 @@ class Socket extends EventTarget {
     this.receive(Buffer.concat([frame(15, Buffer.from('{"code":200}')), frame(12), frame(13, envelope(1), 1, 3, true)]));
   }
 }
-function setup(onMessage: (message: DmMessage) => void | Promise<void> = () => {}, seenMessageIds: string[] = []) {
+function setup(onMessage: (message: DmMessage) => void | Promise<void> = () => {}, seenMessageIds: string[] = [], onChange?: (change: DmChange) => void | Promise<void>) {
   const socket = new Socket(), capture = session();
   let connections = 0;
-  const receiver = new ThreadsDmIncoming({ session: capture, threadId: 'test-chat', seenMessageIds, onMessage,
+  const receiver = new ThreadsDmIncoming({ session: capture, threadId: 'test-chat', seenMessageIds, onMessage, ...(onChange ? { onChange } : {}),
     socketFactory: (url, init) => { connections++; assert.equal(url, capture.url); assert.equal(init.headers['cookie'], 'synthetic=session'); return socket as unknown as WebSocket; },
   });
   return { socket, receiver, capture, connections: () => connections };
 }
-async function ready(onMessage?: (message: DmMessage) => void | Promise<void>, seen?: string[]) {
-  const context = setup(onMessage, seen), starting = context.receiver.start();
+async function ready(onMessage?: (message: DmMessage) => void | Promise<void>, seen?: string[], onChange?: (change: DmChange) => void | Promise<void>) {
+  const context = setup(onMessage, seen, onChange), starting = context.receiver.start();
   context.socket.authenticate(); await starting; return context;
 }
 const reason = (expected: ThreadsIncomingError['reason']) => (error: unknown) => error instanceof ThreadsIncomingError && error.reason === expected;
@@ -156,6 +156,36 @@ test('callbacks run one at a time in order; an unsupported message is delivered,
   while (order.length < 3) await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(order, ['one:text', 'photo:unsupported', 'three:text']);
   context.receiver.stop();
+});
+
+test('reactions, edits, unsends and reads reach onChange in order after messages; malformed or other-chat ones are skipped', async () => {
+  const events: string[] = [];
+  const context = await ready(message => { events.push('message:' + message.messageId); }, [], change => { events.push(JSON.stringify(change)); });
+  const base = { thread_fbid: 'test-chat', uq_seq_id: '1', offline_threading_id: '2' };
+  context.socket.receive(frame(13, delta([
+    entry('one'),
+    { ...base, __typename: 'SlideUQPPCreateReaction', message_id: 'one', reaction: { reaction: '\u2764', sender_fbid: 'test-B', reaction_timestamp_ms: '2000', log_message_id: 'x' } },
+    { ...base, __typename: 'SlideUQPPEditMessage', message_id: 'one', slide_edit_history_entry: { body: 'edited text', timestamp_ms: '3000' } },
+    { ...base, __typename: 'SlideUQPPDeleteMessage', message_id: 'one', latest_snippet_activity_context: {} },
+    { ...base, __typename: 'SlideUQPPMarkRead' },
+    { ...base, __typename: 'SlideUQPPEditMessage', message_id: 'one' },
+    { ...base, thread_fbid: 'other-chat', __typename: 'SlideUQPPDeleteMessage', message_id: 'x' },
+    { ...base, __typename: 'SlideUQPPSomethingNew', message_id: 'one' },
+  ])));
+  while (events.length < 5) await new Promise(resolve => setImmediate(resolve));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(events, ['message:one',
+    JSON.stringify({ kind: 'reaction', messageId: 'one', senderFbid: 'test-B', reaction: '\u2764', timestampMs: '2000' }),
+    JSON.stringify({ kind: 'edit', messageId: 'one', content: 'edited text', timestampMs: '3000' }),
+    JSON.stringify({ kind: 'unsend', messageId: 'one' }), JSON.stringify({ kind: 'read' })]);
+  assert.equal(context.receiver.state, 'ready');
+  context.receiver.stop();
+});
+
+test('a rejecting onChange stops the receiver with the changed message ID', async () => {
+  const context = await ready(() => {}, [], () => { throw new Error('host failure'); });
+  context.socket.receive(frame(13, delta([{ thread_fbid: 'test-chat', __typename: 'SlideUQPPDeleteMessage', message_id: 'gone' }])));
+  await assert.rejects(context.receiver.closed, (error: unknown) => error instanceof ThreadsIncomingError && error.reason === 'callback-failed' && error.messageId === 'gone');
 });
 
 test('an image redelivered with a changed CDN URL is suppressed, not a conflict', async () => {

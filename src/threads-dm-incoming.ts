@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { DmMessage } from './threads-dm-read.ts';
-import { IncomingFrames, check, object, json, decodeIncomingEnvelope } from './threads-incoming-protocol.ts';
+import { IncomingFrames, check, object, json, decodeIncomingEnvelope, type DmChange } from './threads-incoming-protocol.ts';
+export type { DmChange } from './threads-incoming-protocol.ts';
 
 export interface ThreadsIncomingSession {
   readonly url: string;
@@ -26,6 +27,8 @@ export interface ThreadsIncomingOptions {
   readonly threadId: string;
   /** Messages from threadId are delivered one at a time, in order; callback rejection stops the receiver. */
   readonly onMessage: (message: DmMessage) => void | Promise<void>;
+  /** Reactions, edits, unsends and reads in threadId, queued with messages; not deduplicated. Rejection stops the receiver. */
+  readonly onChange?: (change: DmChange) => void | Promise<void>;
   readonly seenMessageIds?: readonly string[];
   readonly socketFactory?: (url: string, options: { headers: Record<string, string> }) => WebSocket;
 }
@@ -38,6 +41,7 @@ export class ThreadsDmIncoming {
   #packets: Buffer[] = [];
   #threadId: string;
   #onMessage: ThreadsIncomingOptions['onMessage'] | undefined;
+  #onChange: ThreadsIncomingOptions['onChange'];
   #factory: NonNullable<ThreadsIncomingOptions['socketFactory']>;
   #socket: WebSocket | undefined;
   #frames = new IncomingFrames();
@@ -61,6 +65,7 @@ export class ThreadsDmIncoming {
   constructor(options: ThreadsIncomingOptions) {
     this.#threadId = options.threadId;
     this.#onMessage = options.onMessage;
+    this.#onChange = options.onChange;
     // Node 24 accepts headers here; the installed DOM constructor declaration omits that overload.
     const NodeSocket = WebSocket as unknown as new (url: string, init: { headers: Record<string, string> }) => WebSocket;
     this.#factory = options.socketFactory ?? ((url, init) => new NodeSocket(url, init));
@@ -68,7 +73,8 @@ export class ThreadsDmIncoming {
     void this.closed.catch(() => {});
     void this.#ready.promise.catch(() => {});
     try {
-      check(typeof options.threadId === 'string' && options.threadId.length > 0 && typeof options.onMessage === 'function');
+      check(typeof options.threadId === 'string' && options.threadId.length > 0 && typeof options.onMessage === 'function' &&
+        (options.onChange === undefined || typeof options.onChange === 'function'));
       const session = options.session, url = new URL(session.url);
       check(url.protocol === 'wss:' && url.hostname === 'gateway.threads.com' && url.pathname === '/ws/lightspeed' &&
         !url.port && !url.username && !url.password && !url.hash &&
@@ -141,7 +147,7 @@ export class ThreadsDmIncoming {
     clearTimeout(this.#deadline); clearInterval(this.#ping);
     this.#session = undefined;
     this.#packets.forEach(p => p.fill(0)); this.#packets = [];
-    this.#seen.clear(); this.#frames.clear(); this.#onMessage = undefined;
+    this.#seen.clear(); this.#frames.clear(); this.#onMessage = undefined; this.#onChange = undefined;
     const socket = this.#socket; this.#socket = undefined;
     if (socket) {
       socket.removeEventListener('message', this.#message);
@@ -215,6 +221,12 @@ export class ThreadsDmIncoming {
             this.#deliveries = this.#deliveries.then(async () => {
               if (this.#state === 'ready') await callback(message);
             }).catch(() => this.#fail('callback-failed', message.messageId));
+          }
+          const onChange = this.#onChange;
+          for (const change of onChange && this.#state === 'ready' ? envelope.changes : []) {
+            this.#deliveries = this.#deliveries.then(async () => {
+              if (this.#state === 'ready') await onChange!(change);
+            }).catch(() => this.#fail('callback-failed', 'messageId' in change ? change.messageId : undefined));
           }
         }
         this.#maybeReady();
