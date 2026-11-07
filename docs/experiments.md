@@ -120,6 +120,20 @@ subscription, as captured from the browser's open chat, does not carry messages 
 Message requests. Not established: whether another subscription, a folder read, or
 accepting the request would make them visible.
 
+**Requests page, same day (no messages).** In an owned background tab, the helper
+opened `/messages/requests` from the mailbox. **OBSERVED** in the browser:
+
+- `BarcelonaMessagesThreadListMailboxQuery` with `folder: "PENDING"`, then
+  `BarcelonaMessagesThreadListPaginationQuery` with `folder: "PENDING"`. This is
+  the same inbox-list query with a different folder value.
+- `WmiSlideMailboxMutationsMarkFolderSeenMutation` fired on opening the page, so
+  opening Requests clears its badge. No chat was opened, nothing was accepted.
+- No new WebSocket opened. The page listed the request chat.
+
+Whether the `PENDING` response itself contained the request chat was not captured
+(output truncated; a rerun was stopped by the open-chat check). Not tested: a Node
+read with a captured `PENDING` body, accepting, and replying to a request.
+
 ### E5-SDK-FRESH-RECONNECT-20261029 — fresh manual connection received a new message
 
 After the earlier bounded test expired, the owner explicitly opted into a new
