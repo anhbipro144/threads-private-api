@@ -25,9 +25,14 @@ The work is limited to the owner's authenticated accounts and consented test con
 - Never inspect unrelated conversations, collect third-party private data, or perform bulk messaging.
 - Obtain explicit approval for each live message, including sender, recipient, exact content, and send count.
 - Never retry a message when delivery status is uncertain.
-- Keep credentials, browser state, and sensitive network captures outside the repository.
-- Never log or commit authentication headers, cookies, CSRF values, private URLs, account identifiers, or message contents.
-- Store only sanitized test fixtures.
+- Keep credentials and browser state outside the repository.
+- The owner allowed (2026-11-07) reading message contents and IDs of the agreed test
+  conversations during a session. Raw network captures may be saved only in the
+  Git-ignored `captures/` folder (the redacted DevTools server cannot write outside the
+  repo), and must be deleted when the analysis is done.
+- Never log or commit authentication headers, cookies, CSRF values, or tokens. Never
+  commit private URLs, account identifiers, handles, or message contents; commit only
+  sanitized test fixtures.
 
 ## Engineering workflow
 
