@@ -24,6 +24,8 @@ interface DmMessageBase {
   readonly threadFbid: string;
   readonly senderFbid: string;
   readonly timestampMs: string;
+  /** Reads only: the quoted message's `messageId` when this message is a quote reply (E18). */
+  readonly repliedToMessageId?: string;
 }
 
 export interface TextDmMessage extends DmMessageBase {
@@ -218,6 +220,11 @@ function parseContent(content: unknown) {
   return unsupported;
 }
 
+function repliedTo(value: unknown): { repliedToMessageId?: string } {
+  const id = isObject(value) ? value['message_id'] : undefined;
+  return typeof id === 'string' && id.length > 0 ? { repliedToMessageId: id } : {};
+}
+
 export function parseMessageList(data: Record<string, unknown>, expectedThreadId?: string): MessageListPage {
   if ('get_slide_thread' in data && 'fetch__SlideThread' in data) throw new Error('Threads read: ambiguous message roots');
   const thread = data['get_slide_thread'] ?? data['fetch__SlideThread'];
@@ -236,6 +243,7 @@ export function parseMessageList(data: Record<string, unknown>, expectedThreadId
       threadFbid,
       senderFbid: requireString(node['sender_fbid'], `message[${i}].sender_fbid`),
       timestampMs: requireString(node['timestamp_ms'], `message[${i}].timestamp_ms`),
+      ...repliedTo(node['replied_to_message']),
       ...parseContent(node['content']),
     };
   });

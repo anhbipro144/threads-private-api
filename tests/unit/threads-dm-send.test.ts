@@ -122,3 +122,14 @@ test('network, HTTP, and malformed provider failures stay sanitized and consume 
     assert.equal(calls, 1);
   }
 });
+
+test('a reply target is sent as replied_to_message_id; the captured form stays a plain send', async () => {
+  let sent: Record<string, unknown> | undefined;
+  const attempt = new ThreadsTextSendAttempt({ capture: capture(), text: 'reply', replyToMessageId: 'mid.$synthetic', fetchImpl: async (_url, init) => {
+    sent = JSON.parse(new URLSearchParams(String(init?.body)).get('variables')!);
+    return new Response(JSON.stringify(acknowledgement(init)));
+  } });
+  await attempt.send();
+  assert.equal(sent?.['replied_to_message_id'], 'mid.$synthetic');
+  assert.throws(() => new ThreadsTextSendAttempt({ capture: capture(), text: 'reply', replyToMessageId: ' ' }), /reply target/);
+});

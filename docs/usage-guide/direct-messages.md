@@ -25,6 +25,9 @@ Review exact sender, recipient and text and obtain approval for one send before
 `send()`. Repeated/concurrent calls on that attempt cannot resend. Echoes in the
 acknowledgement are validated; check receipt independently on the receiving account.
 
+Pass `replyToMessageId` (a `messageId` from a read) to quote that message. Reads
+return `repliedToMessageId` on quote replies; the receiver does not yet.
+
 `new ThreadsImageSendAttempt({ capture, image })` sends one photo (a `Blob`): one
 upload to `/ajax/mercury/upload.php`, then one `WmiSlideMediaMessageMutation`.
 Its capture is a media-send form for the conversation (`media.attachment_type:

@@ -458,3 +458,16 @@ test('sessionFromCapturedForms rejects a capture it cannot parse', () => {
     assert.throws(() => sessionFromCapturedForms({ ...capture, threadListBody }).listThreads(), /object|ambiguous/);
   }
 });
+
+test('a quote reply carries the quoted message ID; other messages omit it', () => {
+  const node = (id: string, replied: unknown) => ({ node: { as_micg_interface: {
+    message_id: id, thread_fbid: 't', sender_fbid: 's', timestamp_ms: '1',
+    replied_to_message: replied, content: { text_body: 'x' },
+  } } });
+  const page = parseMessageList({ get_slide_thread: { messages: {
+    edges: [node('m2', { message_id: 'm1', content: { text_body: 'quoted' } }), node('m3', null)],
+    page_info: { has_next_page: false, end_cursor: null },
+  } } });
+  assert.equal(page.messages[0]!.repliedToMessageId, 'm1');
+  assert(!('repliedToMessageId' in page.messages[1]!));
+});

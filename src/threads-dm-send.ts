@@ -9,6 +9,8 @@ export interface ThreadsTextSendCapture extends ThreadsReadRequest {
 export interface ThreadsTextSendOptions {
   readonly capture: ThreadsTextSendCapture;
   readonly text: string;
+  /** Quote this message (a `messageId` from a read of the same conversation), as the web client does. */
+  readonly replyToMessageId?: string;
   readonly fetchImpl?: typeof fetch;
 }
 
@@ -83,12 +85,16 @@ export class ThreadsTextSendAttempt {
     if (!nonempty(options.text) || !nonempty(options.capture.senderFbid)) {
       throw new Error('Threads send: nonempty text and observed messaging sender required');
     }
+    if (options.replyToMessageId !== undefined && !nonempty(options.replyToMessageId)) {
+      throw new Error('Threads send: reply target must be a nonempty message ID');
+    }
     this.#thread = variables['thread_fbid'];
     this.#sender = options.capture.senderFbid;
     this.#text = options.text;
     this.#offlineId = freshOfflineId(variables['offline_threading_id']);
     variables['text_body'] = { sensitive_string_value: this.#text };
     variables['offline_threading_id'] = this.#offlineId;
+    variables['replied_to_message_id'] = options.replyToMessageId ?? null;
     form.set('variables', JSON.stringify(variables));
     this.#body = form.toString();
     this.#headers = { ...options.capture.headers };

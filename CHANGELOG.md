@@ -12,6 +12,8 @@
   Live links and other kinds stay `unsupported`. Reads return links as `text`.
 - `ThreadsImageSendAttempt` sends one photo: upload, then media send, single attempt.
   `ThreadsImageUploadError` means nothing was sent. Checked live once (E17).
+- `ThreadsTextSendAttempt` takes `replyToMessageId` for quote replies; reads return
+  `repliedToMessageId`. Checked live once each (E18).
 
 ## 0.3.0-beta.1
 

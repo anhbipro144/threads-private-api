@@ -256,6 +256,30 @@ shop, with the acknowledged message ID. **REPRODUCED.** DevTools stayed attached
 and Chrome was open. Not checked: receipt on the third account's side, JPEG or
 large files, captions, several photos.
 
+### E18-QUOTE-REPLY-20261107 — quote replies
+
+In the second test chat, the shop quoted the third account's latest text twice:
+once through the web UI in the agent's own tab, once from Node. One message each.
+
+- **UI (OBSERVED):** hovering a message shows three buttons (a popup, an unlabeled one, "More");
+  the plain button opens "Replying to <user>" above the composer. Send used the
+  normal `WmiSlideTextMessageMutation` (doc id `29354454254221243`) with
+  `replied_to_message_id` set to the quoted message's `message_id` (`mid.$…`), equal
+  to the reader's `messageId`. Typing also sent `WmiSlidePublishTypingIndicatorMutation`
+  (doc id `29129012240068718`, `thread_id`, `activity_status`, `ttl`).
+- **Reads:** a quote reply's node has `replied_to_message` with `message_id`, `id`,
+  `sender_fbid`, `sender` and `content.text_body`.
+- **Node (REPRODUCED):** `ThreadsTextSendAttempt` with `replyToMessageId` sent one quote
+  reply; the acknowledgement validated and a read showed exactly one new item, from
+  the shop, quoting the right message. `parseMessageList` now returns
+  `repliedToMessageId`; a live read gave it on both quote replies and on no other message.
+- **Also seen:** the item added on accepting a request (E14) is the notice
+  "You accepted a message request from <user>".
+
+Opening a chat with nothing unread sent no mark-read mutation. Not established:
+mark-read (needs an unread customer message), whether SDK reads mark a chat read,
+quote replies in live deltas, and quoting photos.
+
 ### E5-SDK-FRESH-RECONNECT-20261029 — fresh manual connection received a new message
 
 After the earlier bounded test expired, the owner explicitly opted into a new
