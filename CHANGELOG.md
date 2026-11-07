@@ -8,8 +8,8 @@
 - Receiver delivers callbacks one at a time, in order. `callback-failed` errors carry
   `messageId`. The 10,000-ID dedupe set evicts the oldest ID instead of stopping.
 - `DmMessage` adds `kind: 'image'` (`images` with URL and size) and `kind: 'shared-post'`
-  (`postId`, `ownerId`, `caption`), parsed from shapes observed live in E11. Links and
-  other kinds stay `unsupported`.
+  (`postId`, `ownerId`, `caption`), checked live in reads and the receiver (E11, E12).
+  Live links and other kinds stay `unsupported`. Reads return links as `text`.
 
 ## 0.3.0-beta.1
 

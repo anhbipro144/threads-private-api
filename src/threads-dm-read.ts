@@ -197,7 +197,6 @@ export function parseThreadList(data: Record<string, unknown>): ThreadListPage {
 function parseContent(content: unknown) {
   const unsupported = { kind: 'unsupported' as const };
   if (!isObject(content)) return unsupported;
-  if (typeof content['text_body'] === 'string') return { kind: 'text' as const, content: content['text_body'] };
   if (content['__typename'] === 'THMessageImagesContent' && Array.isArray(content['images']) && content['images'].length > 0) {
     const images: DmImage[] = [];
     for (const image of content['images']) {
@@ -214,6 +213,8 @@ function parseContent(content: unknown) {
     const caption = isObject(content['xma']) ? content['xma']['caption_body_text'] : null;
     return { kind: 'shared-post' as const, postId, ownerId, caption: typeof caption === 'string' ? caption : null };
   }
+  // Checked last: reads also put `text_body` on shared posts, unlike live deltas.
+  if (typeof content['text_body'] === 'string') return { kind: 'text' as const, content: content['text_body'] };
   return unsupported;
 }
 

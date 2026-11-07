@@ -50,8 +50,8 @@ The host verifies account identity and the agreed conversation when collecting
 the session. A subscription can contain mailbox-wide deltas; the receiver filters
 to `threadId` before parsing or delivering message content. It does not return
 other conversations, raw envelopes, non-message deltas or provider error text.
-Only text messages are supported, including owner-originated messages in that
-conversation. Incoming events are not permission to send replies.
+Text, image and shared-post messages are supported, including owner-originated
+messages in that conversation. Incoming events are not permission to send replies.
 
 `start()` is idempotent while connecting/ready. States are `configured`,
 `connecting`, `ready`, `stopped`, `failed`. `stop()` works before readiness,
@@ -64,7 +64,8 @@ Throwing or rejecting a callback stops the receiver without replaying that event
 the `callback-failed` error carries `messageId` so the host can recover it by reading.
 Images arrive as `kind: 'image'` and shared Threads posts as `kind: 'shared-post'`.
 Anything else without text, including links, arrives as `kind: 'unsupported'`
-(ID, sender, time only).
+(ID, sender, time only). A read returns links as `kind: 'text'`, so the two can
+differ for one link message. Image URLs change between deliveries, so keep a copy.
 
 Within one connection, message IDs are suppressed after first delivery; conflicting
 repeated text-message representations stop the connection. `seenMessageIds` can

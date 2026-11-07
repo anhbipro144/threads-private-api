@@ -158,6 +158,7 @@ test('images and shared posts parse from observed shapes; anything else stays un
   assert.deepEqual(parse({ ...post, xma: { caption_body_text: 'synthetic' } }),
     { ...base, kind: 'shared-post', postId: 'post-1', ownerId: 'owner-1', caption: 'synthetic' });
   assert.deepEqual(parse(post), { ...base, kind: 'shared-post', postId: 'post-1', ownerId: 'owner-1', caption: null });
+  assert.deepEqual(parse({ ...post, text_body: 'synthetic' }), { ...base, kind: 'shared-post', postId: 'post-1', ownerId: 'owner-1', caption: null });
   for (const content of [
     { __typename: 'THMessageImagesContent', images: [] },
     { __typename: 'THMessageImagesContent', images: [{ ...image, attachment_cdn_url: 'javascript:alert(1)' }] },

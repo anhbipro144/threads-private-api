@@ -50,12 +50,39 @@ with no parser errors and no entries from other chats. **OBSERVED**, one message
 Every message also carried `as_micg_interface.sender` with `name`, `username` and
 `profile_pic_uri`, the lead for customer identity. A link's text is not in `text_body`.
 
-**Not established:** the message-list read shape, because reload and reopening served
-chat data from page or client cache without `BarcelonaMessageListContainerQuery`. The
-parser falls back to `unsupported` on a mismatch, and the image and shared-post kinds
-have no live Node read or receiver run. Field meanings such as `caption_body_text`,
-CDN URL lifetime, multi-image messages and story replies were not checked. Story
-replies, video, voice and stickers were left out by owner decision.
+**Not established in E11:** the message-list read shape, because reload and reopening
+served chat data from page or client cache. E12 below covers reads and the SDK.
+
+### E12-SDK-NON-TEXT-20261107 — compiled SDK reads and receives an image and a shared post
+
+The owner approved two customer-to-shop messages in the agreed chat, one plain test
+image and one share of their own test post, and sent each by hand. The agent sent
+nothing. A private helper outside the repo attached to the owner's Chrome, confirmed
+the shop account, opened its own background tab, and opened the agreed chat from the
+mailbox so that `BarcelonaMessageListContainerQuery` fired. It captured that request
+and the incoming setup in memory, closed its tab, and disconnected DevTools before
+the SDK connected. Output was sanitized; nothing was saved.
+
+**REPRODUCED** with built `dist/index.js`:
+
+- **Read shape.** Images in a read use `THMessageImagesContent`, the same as live
+  deltas. Shared posts (`THTextPostAppLinkXMA`) and links (`THMessageXMAContent`)
+  in reads also carry `text_body`, which deltas lack. The first read parsed the
+  shared post as `text`. The parser now checks the image and shared-post types before
+  `text_body`, and a second read returned `shared-post`. **Links read as `text` but
+  arrive live as `unsupported`.**
+- **Receiver.** Two callbacks, `image` then `shared-post`, with no duplicates over a
+  further 20 seconds. Each matched a separate Node read. The image URL differed
+  between the callback and the read, as expected by the dedupe digest.
+- **Images.** CDN URLs from the read and from the callback returned HTTP 200
+  `image/png` without cookies, shortly after delivery. Their lifetime is untested.
+- **Caption.** Both shared posts reported `caption: "post"`, which the owner
+  confirmed is the shared post's text.
+- The browser sent the stream establish and subscribe frames in one packet; earlier
+  runs saw two. `ThreadsDmIncoming` accepted either.
+
+Not checked: multi-image messages, long-running use, story replies, video, voice and
+stickers. The approvals for both messages are consumed.
 
 ### E5-SDK-FRESH-RECONNECT-20261029 — fresh manual connection received a new message
 
