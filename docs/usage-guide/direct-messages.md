@@ -28,6 +28,12 @@ acknowledgement are validated; check receipt independently on the receiving acco
 Pass `replyToMessageId` (a `messageId` from a read) to quote that message. Reads
 return `repliedToMessageId` on quote replies; the receiver does not yet.
 
+`await markThreadRead({ capture })` marks one conversation read up to now. Its capture is
+the `WmiSlideThreadMutationsMarkReadMutation` form the web client sends when that chat is
+opened; only `timestamp_ms` is replaced. Reads never mark a chat read. The client sends that
+form only when opening an unread chat. One request, no retry; checked live once with a form
+from the same page load (E16-E18-SDK-LIVE-20261107).
+
 `new ThreadsImageSendAttempt({ capture, image })` sends one photo (a `Blob`): one
 upload to `/ajax/mercury/upload.php`, then one `WmiSlideMediaMessageMutation`.
 Its capture is a media-send form for the conversation (`media.attachment_type:

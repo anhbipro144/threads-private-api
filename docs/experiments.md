@@ -329,7 +329,36 @@ with no watermark change. Opening the chat in the web UI sent
 `WmiSlideThreadMutationsMarkReadMutation` (doc id `28922846890740640`, variables
 `thread_fbid`, `timestamp_ms`; sent twice), after which `is_unread` was false and the shop's
 watermark advanced. Not established: a Node mark-read, what the customer sees as "seen",
-and reaction removal.
+and reaction removal (the last two since covered, below).
+
+### E16-E18-SDK-LIVE-20261107 — `onChange` live, reaction removal and a Node mark-read
+
+The compiled SDK listened on the second test chat for 25 minutes (tapped to log unparsed
+delta types and field names, no values; IDs redacted in logs). The owner, as the third
+account, sent one text, reacted, removed the reaction, reacted and removed it again, then
+sent a second text after the shop had opened the chat once. **REPRODUCED**, one run:
+
+- Both texts arrived as one `onMessage` callback each.
+- Each reaction arrived as one `onChange` `reaction` with the message, sender and time.
+- Each removal arrived as `SlideUQPPDeleteReaction` (OBSERVED twice): `message_id`,
+  `latest_snippet_activity_context`, and `reaction: {reaction, sender_fbid, log_message_id}`
+  with `reaction_timestamp_ms: null`. `onChange` now reports it as `unreact`.
+- The shop opening the chat (owned tab, closed afterwards) gave `onChange` `read`; the inbox
+  went from unread to read. The tab's `WmiSlideThreadMutationsMarkReadMutation` form was
+  kept in memory only.
+- **Node mark-read:** after the second text, the inbox showed the chat unread. One Node POST
+  of that captured form, with `timestamp_ms` set to now, returned HTTP 200,
+  `data.slide_mark_thread_read` and no errors. 15 s later the inbox showed it read, and the
+  receiver got a `read` change. One attempt, no retry. No SDK method yet.
+
+**SDK `markThreadRead`**, a second run the same day: opening an already-read chat sent no
+mark-read, so the web client sends it only for an unread chat. The owner then sent one text
+(chat unread), the shop opened it once to capture the form (chat read), and the owner sent a
+second text (unread). One `markThreadRead` call with that form succeeded; 15 s later the inbox
+showed the chat read and the receiver got a `read` change. One attempt. **REPRODUCED** once.
+
+Not established: what the customer sees as "seen", and mark-read with a form from a
+different page load. A host must capture the form while the chat is unread.
 
 ### E5-SDK-FRESH-RECONNECT-20261029 — fresh manual connection received a new message
 

@@ -14,7 +14,7 @@ export { createThreadsSendHandler } from './threads-send-handler.ts';
 export type { ThreadsSendConversation, ThreadsSendHandlerOptions } from './threads-send-handler.ts';
 
 export {
-  ThreadsTextSendAttempt, ThreadsSendOutcomeUnknownError, ThreadsImageSendAttempt, ThreadsImageUploadError, THREADS_UPLOAD_ENDPOINT,
+  ThreadsTextSendAttempt, ThreadsSendOutcomeUnknownError, ThreadsImageSendAttempt, ThreadsImageUploadError, THREADS_UPLOAD_ENDPOINT, markThreadRead,
 } from './threads-dm-send.ts';
 export type {
   ThreadsTextSendCapture,
@@ -22,6 +22,7 @@ export type {
   ThreadsTextSendAcknowledgement,
   ThreadsImageSendOptions,
   ThreadsImageSendAcknowledgement,
+  ThreadsMarkReadOptions,
 } from './threads-dm-send.ts';
 
 export { createThreadsReadHandler } from './threads-read-handler.ts';

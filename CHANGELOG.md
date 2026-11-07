@@ -14,8 +14,10 @@
   `ThreadsImageUploadError` means nothing was sent. Checked live once (E17).
 - `ThreadsTextSendAttempt` takes `replyToMessageId` for quote replies; reads return
   `repliedToMessageId`. Checked live once each (E18).
-- `ThreadsDmIncoming` takes `onChange` for reactions, edits, unsends and reads in the
-  conversation (`DmChange`), built from deltas observed once each; not yet run live.
+- `ThreadsDmIncoming` takes `onChange` for reactions, reaction removals, edits, unsends and
+  reads in the conversation (`DmChange`). Reactions, removals and reads checked live once.
+- `markThreadRead` marks a conversation read by replaying a captured mark-read form with
+  `timestamp_ms` set to now. Checked live once.
 
 ## 0.3.0-beta.1
 

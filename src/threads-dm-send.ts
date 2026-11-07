@@ -130,6 +130,41 @@ export class ThreadsTextSendAttempt {
   }
 }
 
+export interface ThreadsMarkReadOptions {
+  /** A `WmiSlideThreadMutationsMarkReadMutation` form for the conversation, with its headers. */
+  readonly capture: ThreadsReadRequest;
+  readonly fetchImpl?: typeof fetch;
+}
+
+/**
+ * Marks the captured conversation read up to now: one request, no retry (E16-E18-SDK-LIVE-20261107).
+ * Throws `ThreadsAuthRequiredError` for an auth rejection and a value-free `Error` otherwise.
+ */
+export async function markThreadRead(options: ThreadsMarkReadOptions): Promise<void> {
+  const form = new URLSearchParams(options.capture.body);
+  let variables: unknown;
+  try { variables = JSON.parse(form.get('variables') ?? 'null'); }
+  catch { throw new Error('Threads mark read: invalid captured variables'); }
+  if (form.getAll('variables').length !== 1 ||
+      form.getAll('fb_api_req_friendly_name').length !== 1 ||
+      form.get('fb_api_req_friendly_name') !== 'WmiSlideThreadMutationsMarkReadMutation' ||
+      form.getAll('doc_id').length !== 1 || !/^\d+$/.test(form.get('doc_id') ?? '') ||
+      !object(variables) || !nonempty(variables['thread_fbid']) ||
+      Object.keys(variables).some(key => !['thread_fbid', 'timestamp_ms'].includes(key))) {
+    throw new Error('Threads mark read: expected a captured mark-read form');
+  }
+  form.set('variables', JSON.stringify({ ...variables, timestamp_ms: String(Date.now()) }));
+  const response = await (options.fetchImpl ?? fetch)(THREADS_GRAPHQL_ENDPOINT, {
+    method: 'POST', headers: { ...options.capture.headers }, body: form.toString(),
+    redirect: 'error', signal: AbortSignal.timeout(30_000),
+  });
+  if (response.status === 401 || response.status === 403) throw new ThreadsAuthRequiredError(`HTTP ${response.status}`);
+  if (response.status !== 200) throw new Error(`Threads mark read: HTTP ${response.status}`);
+  if (!('slide_mark_thread_read' in parseGraphqlEnvelope(await response.text()))) {
+    throw new Error('Threads mark read: unexpected response');
+  }
+}
+
 export const THREADS_UPLOAD_ENDPOINT = 'https://www.threads.com/ajax/mercury/upload.php';
 // Page fields observed in the browser's upload query (E17-PHOTO-SEND-20261107); taken from the captured form.
 const UPLOAD_QUERY_FIELDS = [
