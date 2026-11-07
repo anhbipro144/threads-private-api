@@ -25,6 +25,14 @@ Review exact sender, recipient and text and obtain approval for one send before
 `send()`. Repeated/concurrent calls on that attempt cannot resend. Echoes in the
 acknowledgement are validated; check receipt independently on the receiving account.
 
+`new ThreadsImageSendAttempt({ capture, image })` sends one photo (a `Blob`): one
+upload to `/ajax/mercury/upload.php`, then one `WmiSlideMediaMessageMutation`.
+Its capture is a media-send form for the conversation (`media.attachment_type:
+"IMAGE"`); the upload reuses that form's page fields. `ThreadsImageUploadError`
+means the upload failed and no message was sent. Captions, several photos and
+video are not supported. Read the current doc id from the page's public
+JavaScript; it changes (E14-REPLY-20261107).
+
 `ThreadsSendOutcomeUnknownError` consumes the attempt: delivery may have happened.
 Do not retry or create a replacement attempt for that message. The basic guard
 is in memory; the send handler's optional journal retains consumed status across

@@ -236,6 +236,26 @@ Not established: an SDK upload or media send from Node, which `media_fbid`
 source (`fbid` or `image_id`) the send uses, the `attachment_type` value, caption
 support, multiple photos, size limits, and receipt on the third account's side.
 
+#### E17 follow-up: hooked UI send and Node photo send
+
+A second UI photo send (one message) ran with an in-page hook on `XMLHttpRequest`. It
+showed the upload `FormData` has exactly one part, `farr` (the file); the upload
+URL query also carries `fb_dtsg`, `jazoest`, `lsd`, `__csr`, `__comet_req`, `__spin_*`,
+`__crn` and others (the DevTools view had hidden them). The send used
+`media: {attachment_type: "IMAGE", media_fbid}` with `media_fbid` equal to the
+upload's `fbid`, which equalled its `image_id`. One earlier hooked run did not click
+Send; its draft was dropped by closing the tab, and nothing was sent.
+
+Then `ThreadsImageSendAttempt` sent one generated 400×400 PNG from Node into the same
+chat. Its form was built from a fresh message-list form with the media mutation's
+name, doc id `28008426122167348` (confirmed in the page's public JavaScript, with
+input fields `thread_fbid`, `offline_threading_id`, `media`, `replied_to_message_id`,
+`logging_data`), and the new chat's ID. One upload and one send; the acknowledgement
+validated, and a Node read showed exactly one new item: an image, 400×400, from the
+shop, with the acknowledged message ID. **REPRODUCED.** DevTools stayed attached
+and Chrome was open. Not checked: receipt on the third account's side, JPEG or
+large files, captions, several photos.
+
 ### E5-SDK-FRESH-RECONNECT-20261029 — fresh manual connection received a new message
 
 After the earlier bounded test expired, the owner explicitly opted into a new

@@ -10,6 +10,8 @@
 - `DmMessage` adds `kind: 'image'` (`images` with URL and size) and `kind: 'shared-post'`
   (`postId`, `ownerId`, `caption`), checked live in reads and the receiver (E11).
   Live links and other kinds stay `unsupported`. Reads return links as `text`.
+- `ThreadsImageSendAttempt` sends one photo: upload, then media send, single attempt.
+  `ThreadsImageUploadError` means nothing was sent. Checked live once (E17).
 
 ## 0.3.0-beta.1
 

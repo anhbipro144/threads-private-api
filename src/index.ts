@@ -13,11 +13,15 @@ export type { ThreadsSendJournal, ThreadsSendJournalStatus } from './threads-sen
 export { createThreadsSendHandler } from './threads-send-handler.ts';
 export type { ThreadsSendConversation, ThreadsSendHandlerOptions } from './threads-send-handler.ts';
 
-export { ThreadsTextSendAttempt, ThreadsSendOutcomeUnknownError } from './threads-dm-send.ts';
+export {
+  ThreadsTextSendAttempt, ThreadsSendOutcomeUnknownError, ThreadsImageSendAttempt, ThreadsImageUploadError, THREADS_UPLOAD_ENDPOINT,
+} from './threads-dm-send.ts';
 export type {
   ThreadsTextSendCapture,
   ThreadsTextSendOptions,
   ThreadsTextSendAcknowledgement,
+  ThreadsImageSendOptions,
+  ThreadsImageSendAcknowledgement,
 } from './threads-dm-send.ts';
 
 export { createThreadsReadHandler } from './threads-read-handler.ts';
