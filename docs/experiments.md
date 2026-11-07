@@ -112,6 +112,14 @@ connection. When the message arrived relative to the connection's end is unclear
 this does not yet show that request-folder messages are absent from the subscription.
 Not checked: the request read shape, accepting a request, or replying to one.
 
+**Rerun, same day.** The receiver connected from a fresh capture first, then the owner
+sent a second first-chat text by hand on the agent's signal. It again showed under
+Message requests. Over 15 minutes the connection stayed `ready` and received 94
+frames, but no entry from the request chat or any other chat. **OBSERVED:** this
+subscription, as captured from the browser's open chat, does not carry messages in
+Message requests. Not established: whether another subscription, a folder read, or
+accepting the request would make them visible.
+
 ### E5-SDK-FRESH-RECONNECT-20261029 — fresh manual connection received a new message
 
 After the earlier bounded test expired, the owner explicitly opted into a new
