@@ -98,7 +98,9 @@ drop duplicates by message ID. Delivery is at-least-once.
 Only `reconnect-required`, `connection-failed` and `timeout` are retried, with delays doubling
 from 1 s up to `maxBackoffMs` (default 60 s). A connection must stay up a minute to reset the
 attempt count. `closed` resolves on `stop()` and rejects with the last error otherwise. The
-inbox never sends and never logs in. Tested only with synthetic sockets.
+inbox never sends and never logs in. Live, after a Node-side close it reconnected with the same
+4.8-minute-old setup packets; the new connection replayed every message since the capture,
+including ones already delivered, so dedupe by message ID (E19-DROP-RECONNECT-20261108).
 
 Local resource limits are conservative: 1 MiB per frame, 2 MiB for a received
 buffer and 4096 frames/fields/deltas per parsed batch. Exceeding one stops the

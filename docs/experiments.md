@@ -788,6 +788,26 @@ by at least five seconds. Keep session values out of the
 transcript, repository and context-mode knowledge base. Obtain sender/recipient,
 exact content and count authorization separately before E4.
 
+## E19-DROP-RECONNECT-20261108 — ThreadsDmInbox reconnects with the same setup packets
+
+Run 2026-11-08 on the shop test account with two test customers, both chats in the inbox.
+Setup packets came from an owned tab of the owner's Chrome, closed before listening; the
+owner's Chrome itself stayed open. The compiled `ThreadsDmInbox` without `threadId` got the
+same captured session from `getSession()` on every connection. Only the minute, chat label,
+kind, test texts, connection number and states were logged. No sends.
+
+- Message 1 (chat A) arrived live on connection 1. The script then closed the socket from
+  the Node side; the inbox reported `reconnecting` (`connection-failed`).
+- While no connection was open, message 2 was sent in chat B. Once a read showed it, the
+  inbox reconnected with the 4.8-minute-old packets and became `live`.
+- Connection 2 delivered messages 1 and 2 at once: the packets resume from the capture-time
+  cursor, so everything since the capture is replayed, including already delivered messages.
+  `reconcile()` read both chats and found both too.
+- Message 3 (chat A) arrived live on connection 2. Totals: message 1 twice, 2 and 3 once.
+- REPRODUCED once. Hosts must dedupe by message ID across connections. Not covered: a drop
+  by the provider, the owner's Chrome closed, packets older than about 5 minutes, and how far
+  back the replay reaches.
+
 ## E24-LONG-RUN-20261108 — one receiver connection for 75 minutes
 
 Run 2026-11-08 on the shop test account with two test customers, both chats in the inbox.
