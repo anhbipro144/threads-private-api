@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.0-beta.2
+
 - `ThreadsTextSendAttempt.threadId` targets another existing chat from one captured
   plain-text template, including quote replies. Omit it to keep the captured chat;
   empty IDs are refused and acknowledgements must match the chosen chat.
