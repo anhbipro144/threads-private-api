@@ -2,7 +2,7 @@ import { ThreadsDmIncoming, ThreadsIncomingError, type ThreadsIncomingOptions, t
 
 export type ThreadsInboxState = 'connecting' | 'live' | 'reconnecting' | 'needs-owner' | 'stopped' | 'failed';
 
-export interface ThreadsDmInboxOptions extends Omit<ThreadsIncomingOptions, 'session' | 'seenMessageIds'> {
+export interface ThreadsDmInboxOptions extends Omit<ThreadsIncomingOptions, 'session'> {
   /**
    * Supplies setup for each connection: stored packets or a fresh capture from the owner's
    * browser. Which one works after a drop is open (E19). `undefined` means the owner must act.
@@ -28,6 +28,8 @@ export class ThreadsDmInbox {
   #timer: ReturnType<typeof setTimeout> | undefined;
   #wake: (() => void) | undefined;
   #started = false;
+  // Stored setup packets replay everything since capture (E19-DROP-RECONNECT-20261108), so skip what was delivered.
+  #seen: Set<string>;
   #closed = Promise.withResolvers<void>();
   /** Resolves on stop; rejects with the last error on `failed` or `needs-owner`. */
   readonly closed: Promise<void>;
@@ -35,6 +37,7 @@ export class ThreadsDmInbox {
   constructor(options: ThreadsDmInboxOptions) {
     if (typeof options.getSession !== 'function') throw new TypeError('Threads inbox: getSession is required');
     this.#options = options;
+    this.#seen = new Set(options.seenMessageIds);
     this.closed = this.#closed.promise;
     void this.closed.catch(() => {});
   }
@@ -78,7 +81,12 @@ export class ThreadsDmInbox {
         if (this.#ended()) return;
         if (!session) { this.#end('needs-owner', new ThreadsIncomingError('invalid-session')); return; }
         const { onMessage, onChange, threadId, socketFactory } = this.#options;
-        const receiver = this.#receiver = new ThreadsDmIncoming({ onMessage, session,
+        const receiver = this.#receiver = new ThreadsDmIncoming({ session, seenMessageIds: [...this.#seen],
+          onMessage: async message => {
+            await onMessage(message);
+            this.#seen.add(message.messageId);
+            if (this.#seen.size > 10000) this.#seen.delete(this.#seen.values().next().value!);
+          },
           ...(onChange ? { onChange } : {}), ...(threadId ? { threadId } : {}), ...(socketFactory ? { socketFactory } : {}) });
         await receiver.start();
         if (this.#ended()) { receiver.stop(); return; }

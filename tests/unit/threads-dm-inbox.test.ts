@@ -57,7 +57,7 @@ function inbox(overrides: Partial<ConstructorParameters<typeof ThreadsDmInbox>[0
   return { box, sockets, states, received, sessions: () => sessions, reconciles: () => reconciles };
 }
 
-test('inbox reconnects after a drop with a new session, reconciles, and keeps delivering', async () => {
+test('inbox reconnects after a drop with a new session, reconciles, skips replayed messages, and keeps delivering', async () => {
   const c = inbox();
   c.box.start();
   await until(() => c.sockets.length === 1); c.sockets[0]!.authenticate();
@@ -68,6 +68,7 @@ test('inbox reconnects after a drop with a new session, reconciles, and keeps de
   c.sockets[0]!.drop();
   await until(() => c.sockets.length === 2); c.sockets[1]!.authenticate();
   await until(() => c.reconciles() === 1 && c.box.state === 'live');
+  c.sockets[1]!.receive(message('one')); // replayed by the old setup packets
   c.sockets[1]!.receive(message('two'));
   await until(() => c.received.length === 2);
   assert.deepEqual(c.received, ['one', 'two']);
