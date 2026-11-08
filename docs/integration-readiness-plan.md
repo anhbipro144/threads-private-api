@@ -42,7 +42,7 @@ identifiers. Each decision below grants only what it states.
 | D3 | Open | Needed before Phase 6 |
 | D4 | Decided by owner | The owner named three controlled accounts: the shop's account (A, also the D2 risk account) and two customer accounts (B, C). C has never messaged A. `AGENTS.md` scope now covers them; handles stay out of the repository |
 | D5 | Decided by owner | Batch approval is accepted. Each run still needs its own written list of sender, recipient, exact text and count, approved before that run. No list has been approved yet |
-| D6 | Open | Needed before Phase 5 |
+| D6 | Open for remote; local decided | 2026-11-08: the owner approved storing session data on their own machine, one file per shop, owner-only permissions, outside both repositories. Moving it off that machine (homelab, Phase 6) still needs D6 |
 | D7 | Open | Needed before any AI send |
 
 Because the main test account is also the risk-bearing account, a mistake or an
@@ -170,12 +170,14 @@ possible". Revisit the rest of the plan then, since the results may change it.
 **Done when:** synthetic tests cover drop, restart and duplicate cases, and a
 controlled run shows a message sent during a stop is delivered exactly once to the host.
 
-### Phase 5: Session lifecycle (medium, needs E20, D6)
+### Phase 5: Session lifecycle (medium, needs E20; D6 only for a remote host)
 
 - A supported capture command, run by the owner, attaches to their existing Chrome
   (`--autoConnect`), reads current session state in memory, checks the account, and
   hands it to the host. It never logs in or answers a challenge.
-- Secure delivery to the host, in private storage only, per D6.
+- Secure delivery to the host, in private storage only. Build and prove it locally first,
+  with Shop-AI on the owner's machine, where nothing leaves that machine; delivery to the
+  homelab waits for D6.
 - One session per Threads account, so each Shop-AI shop stays separate. Replacing a
   session updates reader, sender and receiver together, unlike today's separate
   lifecycles.
