@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `saveThreadsSession` / `loadThreadsSession` keep one capture per account in a private file
+  (mode 0600, owner-only directory, no links). `pnpm capture-session` (repository only, not
+  in the package) captures it from the owner's logged-in Chrome and checks it with one read
+  and one connection. It captures reading and receiving; not sending or mark-read yet.
 - `ThreadsDmInbox` replaces a dropped receiver with capped backoff, using a host-supplied
   `getSession()`, runs a host `reconcile()` after each reconnect, and reports `live`,
   `reconnecting`, `needs-owner`, `failed` and `stopped`. It skips messages it already delivered

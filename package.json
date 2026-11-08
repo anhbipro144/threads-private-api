@@ -28,7 +28,8 @@
     "prepack": "npm run build",
     "verify:package": "node scripts/verification/package-smoke.mjs",
     "lint": "tsc --noEmit",
-    "verify:mcp": "node scripts/verification/mcp-smoke.ts"
+    "verify:mcp": "node scripts/verification/mcp-smoke.ts",
+    "capture-session": "node scripts/capture-session.ts"
   },
   "devDependencies": {
     "@types/node": "24.19.2",

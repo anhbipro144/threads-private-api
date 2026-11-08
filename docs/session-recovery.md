@@ -49,6 +49,28 @@ IDs can recover status but cannot send. Disable sending until the replacement
 read is `ready`; a capture callback can enforce that before returning any material.
 Do not mutate an existing attempt to inject new credentials.
 
+## Session file and capture command
+
+`saveThreadsSession(file, session)` writes one account's capture (`ThreadsStoredSession`:
+reading forms, the Message requests form and receiver setup) atomically at mode 0600.
+The directory must already exist, belong to the user and be closed to everyone else.
+`loadThreadsSession(file)` refuses links, files others can read and malformed contents,
+with an error that names no path. Keep the file outside every repository; one per account.
+
+From a checkout of this repository, the owner runs, with Chrome open and logged in:
+
+```sh
+pnpm capture-session --username <shop account> --out <absolute file> [--thread <chat id>]
+```
+
+It attaches to that Chrome (Chrome asks the owner to allow it), opens its own tab, confirms
+the account, opens one chat (which marks it read) and the Message requests folder, and builds
+the inbox form from the requests form with `folder: "INBOX"` (the inbox list request does not
+fire in the page; E21). It then saves the file, then checks it with one inbox read and one receiver connection. It prints
+only step results, never session values. It never logs in or answers a challenge: if the tab
+is not logged in as that account, it stops. It does not capture sending or mark-read yet.
+Run it again to replace an expired session.
+
 ## Optional durable send journal
 
 `createThreadsSendHandler({ ..., journal })` enables recovery. Without a journal,

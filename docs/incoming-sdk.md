@@ -87,8 +87,8 @@ live (E16-E18-CUSTOMER-LIVE-20261107); the SDK delivered reactions, removals and
 
 `ThreadsDmInbox` keeps one receiver running and replaces it after a drop. It takes the
 receiver's options except `session`, plus `getSession()`, which returns setup for each new
-connection (stored packets, or a fresh capture from the owner's browser; which one works after
-a drop is open, see E19) or `undefined` when the owner must act. After every reconnect it
+connection (stored packets, which worked up to 4 hours old, or a fresh capture from the owner's
+browser) or `undefined` when the owner must act. After every reconnect it
 calls `reconcile()` while live delivery already runs, so the host can read recent chats and
 drop duplicates by message ID. Delivery is at-least-once.
 
@@ -100,7 +100,8 @@ from 1 s up to `maxBackoffMs` (default 60 s). A connection must stay up a minute
 attempt count. `closed` resolves on `stop()` and rejects with the last error otherwise. The
 inbox never sends and never logs in. Live, after a Node-side close it reconnected with the same
 4.8-minute-old setup packets; the new connection replayed every message since the capture,
-including ones already delivered (E19-DROP-RECONNECT-20261108). The inbox passes the last 10000
+including ones already delivered (E19-DROP-RECONNECT-20261108). With the owner's Chrome
+closed, stored packets 30, 120 and 240 minutes old each connected again (E19-AGED-PACKETS-20261108). The inbox passes the last 10000
 delivered IDs, plus any `seenMessageIds` it was given, to each new receiver, so replays within one
 process are skipped; after a restart the host still dedupes by message ID.
 

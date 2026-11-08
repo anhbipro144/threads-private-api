@@ -788,6 +788,42 @@ by at least five seconds. Keep session values out of the
 transcript, repository and context-mode knowledge base. Obtain sender/recipient,
 exact content and count authorization separately before E4.
 
+## CAPTURE-COMMAND-20261108 — `pnpm capture-session` against the owner's Chrome
+
+Run 2026-11-08 on the shop test account, with the owner's Chrome open and logged in. Only
+step results and counts were printed. No sends.
+
+- First run: account confirmed; message list, Message requests list and receiver setup
+  captured, but going back to the inbox fired no inbox list request (as in every earlier
+  run), so nothing was saved. The command now builds the inbox form from the requests form
+  with `folder: "INBOX"`, only when the page lists that folder (E21).
+- Second run: all steps passed; the file was saved at mode 0600 in an owner-only folder
+  outside both repositories. Its check read 3 inbox chats and the receiver became ready.
+- A separate process loaded the file and read 20 messages of chat A.
+- REPRODUCED once. Not covered: an expired session, a challenge, a second shop account.
+
+## E19-AGED-PACKETS-20261108 — stored setup packets 30, 120 and 240 minutes old, Chrome closed
+
+Run 2026-11-08 on the shop test account. Setup packets, cookies and read forms came once from
+an owned tab of the owner's Chrome and were held in memory only. The owner then closed Chrome
+and kept it closed for the whole run. The customer test account sent one test text in chat A
+once, after the capture and before the first probe. No sends from the shop account.
+
+At 30, 120 and 240 minutes after the capture, a new compiled `ThreadsDmInbox` without
+`threadId` got the stored session from `getSession()` (`maxAttempts` 2), listened 3 minutes,
+then stopped. Only minutes, states, chat labels and test texts were logged.
+
+| Age | Went live | States | Delivered | Read of chat A with stored forms |
+| --- | --- | --- | --- | --- |
+| 30 min | yes | `live`, `stopped` | the test text (replayed) | worked, 3 test texts |
+| 120 min | yes | `live`, `stopped` | the test text (replayed) | worked, 3 test texts |
+| 240 min | yes | `live`, `stopped` | the test text (replayed) | worked, 3 test texts |
+
+- REPRODUCED three times. Node can subscribe alone with packets up to 4 hours old and no
+  browser open; each new connection replays everything since the capture.
+- Not covered: older packets (a day or more), a drop by the provider, a genuine session
+  expiry, and how far back the replay reaches.
+
 ## E19-DROP-RECONNECT-20261108 — ThreadsDmInbox reconnects with the same setup packets
 
 Run 2026-11-08 on the shop test account with two test customers, both chats in the inbox.

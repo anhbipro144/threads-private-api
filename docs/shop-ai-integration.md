@@ -96,10 +96,10 @@ receipt. Whether those URLs work without the session's cookies is not yet checke
 - **Reconnect.** `ThreadsDmInbox` replaces a dropped receiver and reports `live`,
   `reconnecting` and `needs-owner`. Live, it reconnected after a Node-side close with
   5-minute-old stored packets, which replay every message since the capture (E19), so
-  the API must dedupe by message ID. Untested: a provider drop, the owner's Chrome closed,
-  older packets. The inbox must show `needs-owner` as "disconnected" truthfully.
-- **Session capture and storage.** The capture command is Phase 5 and needs D6
-  (approval to move session data to the homelab).
+  the API must dedupe by message ID. With the owner's Chrome closed, packets up to 4 hours
+  old still connected (E19). Untested: a provider drop, packets a day or more old. The inbox must show `needs-owner` as "disconnected" truthfully.
+- **Session capture and storage.** `pnpm capture-session` saves one owner-only file per shop
+  on the owner's machine (reading and receiving only). Moving it to the homelab needs D6.
 - **Real customers.** D3 (retention and deletion) is open; start read-only with AI off.
 
 ## Rollout

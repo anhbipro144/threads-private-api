@@ -12,6 +12,9 @@ export type { ThreadsDmInboxOptions, ThreadsInboxState } from './threads-dm-inbo
 export { createFileThreadsSendJournal } from './threads-send-journal.ts';
 export type { ThreadsSendJournal, ThreadsSendJournalStatus } from './threads-send-journal.ts';
 
+export { saveThreadsSession, loadThreadsSession } from './threads-session-file.ts';
+export type { ThreadsStoredSession } from './threads-session-file.ts';
+
 export { createThreadsSendHandler } from './threads-send-handler.ts';
 export type { ThreadsSendConversation, ThreadsSendHandlerOptions } from './threads-send-handler.ts';
 
