@@ -788,6 +788,20 @@ by at least five seconds. Keep session values out of the
 transcript, repository and context-mode knowledge base. Obtain sender/recipient,
 exact content and count authorization separately before E4.
 
+## E24-LONG-RUN-20261108 — one receiver connection for 75 minutes
+
+Run 2026-11-08 on the shop test account with two test customers, both chats in the inbox.
+Setup packets came from an owned tab of the owner's Chrome, closed before listening; the
+owner's Chrome itself stayed open. One compiled-SDK receiver without `threadId` listened
+for 75 minutes and logged only the minute, chat label, kind, test texts and a state line
+every 5 minutes. No sends.
+
+- The receiver stayed `ready` the whole time with no drop, close or reconnect.
+- Test messages sent at about minutes 2 (chat A), 31 (chat B) and 63 (chat A) each
+  arrived once, within the minute. One `read` change arrived at the start.
+- REPRODUCED once. Not covered: a provider drop (none happened), the owner's Chrome closed,
+  runs longer than 75 minutes, and whether old setup packets work after a drop.
+
 ## E23-ONE-CONNECTION-TWO-CHATS-20261107 — one receiver connection, two inbox chats
 
 Run 2026-11-07 on the shop test account with two test customers, both chats in the inbox.

@@ -126,7 +126,7 @@ One controlled run per experiment, recording sanitized shapes only. Results go i
 | E16 | What do edits, unsends, reactions and read receipts emit? | Ran 2026-11-07. Shop-side UI actions (`E16-SHOP-ACTIONS-20261107`): mutations OBSERVED, reads REPRODUCED. Customer-side live deltas (`E16-E18-CUSTOMER-LIVE-20261107`): `SlideUQPPCreateReaction`, `SlideUQPPEditMessage`, `SlideUQPPDeleteMessage`, `SlideUQPPMarkRead` OBSERVED once each. `onChange` delivered reactions, reaction removals (`SlideUQPPDeleteReaction`) and reads live (`E16-E18-SDK-LIVE-20261107`). Not yet: SDK send methods |
 | E17 | How do photo upload and send work? | Ran 2026-11-07 (`E17-PHOTO-SEND-20261107`): upload is `POST /ajax/mercury/upload.php` (one multipart part `farr`, page fields in the query) on attach; send is `WmiSlideMediaMessageMutation` with `media: {attachment_type: "IMAGE", media_fbid}` (OBSERVED). `ThreadsImageSendAttempt` then sent one photo from Node, read back once (REPRODUCED). Not yet: captions, several photos, large files |
 | E18 | How do quote replies and mark-read work? Do SDK reads mark a chat read? | Done 2026-11-07. Quote replies REPRODUCED (`E18-QUOTE-REPLY-20261107`). Mark-read (`E16-E18-CUSTOMER-LIVE-20261107`): SDK reads leave a chat unread; the UI sends `WmiSlideThreadMutationsMarkReadMutation` (`thread_fbid`, `timestamp_ms`); inbox `is_unread` and read-receipt watermarks track it (OBSERVED). One Node mark-read cleared unread (`E16-E18-SDK-LIVE-20261107`, REPRODUCED); `markThreadRead` REPRODUCED once. A form from one chat with `thread_fbid` swapped marked another chat read (`E21-MARK-READ-ANY-CHAT-20261107`, REPRODUCED once). A held form still worked after one hour, through the SDK with `threadId` (`E22-MARK-READ-LIFETIME-20261107`, REPRODUCED once). Not yet: a form from another page load |
-| E19 | Can Node open a new subscription with no browser? | Partly, 2026-11-07 (`E19-REUSED-SETUP-20261107`): a new receiver reusing 5-minute-old setup packets connected with no browser and received a message. Untested: older packets, after a provider drop or browser close |
+| E19 | Can Node open a new subscription with no browser? | Partly, 2026-11-07 (`E19-REUSED-SETUP-20261107`): a new receiver reusing 5-minute-old setup packets connected with no browser and received a message. Untested: older packets, after a provider drop or browser close. `E24-LONG-RUN-20261108`: one connection stayed ready 75 minutes and delivered 3 of 3 test messages from two chats, with no drop to recover from |
 | E20 | How long does a session last, and what ends it? | Low-frequency owner-initiated reads over days, noting the signal at real expiry and after a browser logout. So far: captured read and mark-read forms worked one hour later (`E22-MARK-READ-LIFETIME-20261107`) |
 
 **Done when:** each row has an evidence level and a written result, including "not
@@ -153,7 +153,9 @@ possible". Revisit the rest of the plan then, since the results may change it.
   chats instead of dropping them. One connection carries every inbox chat
   (`E23-ONE-CONNECTION-TWO-CHATS-20261107`); the SDK receiver without `threadId` delivers
   them all, tagged with `threadFbid`, and the host decides what is new.
-- Reconnect after drops with capped backoff. Which design applies depends on E19:
+- Reconnect after drops with capped backoff. `ThreadsDmInbox` does this for both designs
+  below by asking the host for a session each time (synthetic tests only). Which design
+  applies depends on E19:
   - **Node can subscribe alone:** the SDK reconnects by itself.
   - **It cannot:** reconnecting needs fresh packets from the owner's open browser, so
     the capture tool in Phase 5 supplies them. If that browser is closed, the inbox
@@ -202,8 +204,10 @@ tested through one real expiry.
 Not done in this repository. This phase needs its own explicit task, and the SDK stays
 unaware of Prisma, commerce and the admin UI.
 
-- Refresh `docs/shop-ai-integration.md` first. It predates multi-shop: uniqueness is
-  now per `shopAccountId`, and `ShopAccount.instagramAccountId` is still required.
+- Refresh `docs/shop-ai-integration.md` first. Done 2026-11-08: it now covers multi-shop
+  (uniqueness per `shopAccountId`, `ShopAccount.instagramAccountId` still required), the
+  private-sidecar precedent, and the missing Redis, which makes the Threads container post
+  events to the API.
 - Add the `THREADS` channel, provider-neutral identity and message IDs, and a channel
   dispatcher, including `agent/graph/nodes/send-reply.ts`.
 - Run the connection in one dedicated internal container, following the

@@ -1,101 +1,113 @@
-# Future Shop-AI integration design — not implemented
+# Shop-AI integration design — not implemented
 
-Read-only source inspection: 2026-10-27. Shop-AI was not edited or built. CodeGraph
-was consulted first because the repository is indexed. Consequential schema and
-transport findings below were checked against current files with native search
-and targeted source reads. This document is a proposal, not a migration or adapter.
+Refreshed 2026-11-08 from a read-only look at Shop-AI's current source (first written
+2026-10-27). Shop-AI was not edited or built. This is a proposal for Phase 7 of the
+[readiness plan](integration-readiness-plan.md), not a migration or adapter. The SDK stays
+unaware of Prisma, commerce and the admin UI.
 
-## Current constraints confirmed in source
+## What changed in Shop-AI since the first version
 
-| Current location | Observed coupling | Integration implication |
+- **Multi-shop.** A store has several `ShopAccount`s. `Customer` is unique on
+  `(shopAccountId, instagramUserId)` and `Conversation` on
+  `(shopAccountId, channelConversationId)`, no longer on `storeId`.
+- **`ShopAccount.instagramAccountId` is required and unique.** A Threads connection
+  cannot be added to a shop without either making it optional or keeping provider
+  accounts in a separate table.
+- **A private sidecar exists** (`apps/private-sidecar`, Instagram private operations). It
+  runs as its own container with no published ports, keeps one session file per shop
+  account in host-private storage (mode 0600), never logs in while running, suspends one
+  shop at a time on a challenge, and never retries an uncertain mutation. A Threads
+  connection should follow the same rules.
+- **Messages carry `private*` columns** (`privateThreadId`, `privateItemId`,
+  `privateSessionVersion`) for that sidecar. They belong to Instagram; do not reuse them
+  for Threads.
+- **Production has no Redis.** `publishChatChange` is an in-process `EventEmitter` in the
+  API, so only code running inside the API process can update the inbox live. The worker
+  is a separate container and does not notify the inbox.
+- **AI processing is paused in production** (`AGENT_PROCESSING_PAUSED`).
+
+## Current coupling
+
+| Location | Coupling | Implication |
 | --- | --- | --- |
-| infra/prisma/schema.prisma, Customer | instagramUserId/Username; unique(storeId, instagramUserId) | Separate provider identities from commerce customers |
-| schema, Conversation | channel defaults INSTAGRAM; unique(storeId, channelConversationId) | IDs can collide across providers/accounts |
-| schema, Message | instagramMessageId globally unique; Instagram reply/private fields | Do not place Threads IDs in Instagram columns |
-| schema, Channel enum | INSTAGRAM only | Add Threads through an explicit additive migration |
-| channels/instagram/webhook.ts, normalize.ts, persistence.ts | Instagram ingress and message persistence | Keep Instagram normalization; add provider-specific ingress |
-| channels/instagram/send.ts | Graph Instagram send; failed/unknown send outcomes | Preserve outcome distinctions through a channel dispatcher |
-| conversations/routes.ts | Direct Instagram send/profile/reaction/private-operation imports | Route by conversation channel; gate unsupported capabilities |
-| agent/graph/nodes/send-reply.ts | Imports sendInstagramText directly | Replace at adapter boundary before enabling Threads AI sends |
-| agent/run.ts | Entry input is internal conversationId/messageId | Reuse shared AI entry point after normalized persistence |
-| conversations/events.ts | In-process EventEmitter and publishChatChange | Reuse existing inbox notifications for one API process |
-| packages/shared-types/src/index.ts | Channel = 'instagram'; customer fields Instagram-specific | Add provider-aware types and display identity |
-| admin components/inbox/ConversationWorkspace.tsx | Existing shared conversation UI | Keep internal IDs; add channel label/capability-aware actions |
+| `infra/prisma/schema.prisma`, `Channel` | `INSTAGRAM` only | Add `THREADS` in an additive migration |
+| schema, `ShopAccount` | `instagramAccountId` required, unique | A Threads account per shop needs its own field or table |
+| schema, `Customer` | `instagramUserId`/`instagramUsername`, unique per shop account | Threads users need provider-neutral identity, not these columns |
+| schema, `Message` | `instagramMessageId` globally unique | Threads message IDs need their own column, unique per shop account |
+| `packages/shared-types/src/index.ts` | `Channel = 'instagram'` | Widen the type; label the platform in the inbox |
+| `apps/api/src/channels/instagram/*` | Webhook, normalize, persistence, send | Keep as is; add a sibling `channels/threads` |
+| `apps/api/src/agent/graph/nodes/send-reply.ts` | Imports `sendInstagramText` directly | Route through a channel dispatcher before any Threads AI reply |
+| `apps/api/src/conversations/routes.ts` | Instagram send, reaction and unsend actions | Gate each action by channel capability |
+| `apps/api/src/channels/instagram/webhook.ts` | Persists, then calls `processCustomerMessage` | The Threads path calls the same entry point after persisting |
 
-The proposed SDK must be an independently versioned package. Consume an exact
-released version through Shop-AI's own manifest/lockfile after this project's
-feasibility gate passes. No submodule, subtree, shared node_modules, or cross-repo
-source import. No production integration is recommended at the current evidence level.
+## Identity
 
-## Identity and migration proposal
+Keep `Customer` as the commerce person. Add a provider identity linked to it, unique on
+`(shopAccountId, provider, providerUserId)`, and a Threads account per `ShopAccount`.
+Store the SDK's `ThreadMember.id` as `providerUserId`, with `username`, `name` and
+`avatarUrl` as display data that can change. Never merge an Instagram and a Threads
+customer automatically, even when usernames match; an operator links them, auditably.
 
-Keep Customer as the commerce person record. Add ChannelAccount for the store's
-connected provider account and CustomerChannelIdentity linked to Customer, with
-unique(storeId, provider, providerAccountId, providerUserId). Provider IDs stay
-opaque strings. Scope conversations by store, provider account and provider
-conversation ID; do not assume a DM conversation ID is a recipient ID.
+Conversations use the SDK's thread ID as `channelConversationId` with `channel: THREADS`.
+Messages store the SDK's `messageId` in a new Threads column, unique per shop account.
+Existing Instagram rows and columns are untouched.
 
-Store generic provider message identity scoped by provider account, with a unique
-constraint sufficient for deduplication across threads (or include conversation
-scope if live evidence establishes IDs are only thread-local). Preserve existing
-Instagram columns during the transition. Add a separate sync checkpoint record
-per provider account/stream, based on verified cursor semantics. No real cursor
-or message shape is specified here.
+## Runtime shape
 
-Use an additive migration: create identities/accounts and generic ID fields;
-backfill Instagram rows using the existing store/account relationship; validate
-duplicate keys and missing configured account IDs before adding constraints.
-Backfill must not change existing Customer IDs, carts, orders, or holds. Dual-read
-legacy Instagram fields during rollout, verify counts/links, and postpone deleting
-legacy fields until a separate approved migration. Collision checks must run
-before changing Conversation's current unique constraint.
+```
+ owner's Chrome --capture--> session file (host-private, per shop account)
+                                   |
+                                   v
+ +------------------ threads container (one per deployment) -----------------+
+ |  per shop account: one ThreadsDmIncoming without threadId (every chat)    |
+ |  + ThreadsDmReader for catch-up and Message requests polling              |
+ +---------------------------------+-----------------------------------------+
+                                   | internal HTTP, bearer token, no published port
+                                   v
+ api: persist (dedupe on message ID) -> publishChatChange -> processCustomerMessage
+```
 
-Never merge customers automatically by equal numeric IDs, usernames, display
-names, phone numbers, or apparent Instagram/Threads linkage. New Threads identity
-creates a separate customer unless an operator explicitly links it after review.
-Make the link auditable and reversible; preserve original message provenance.
-Default to separate commerce state until that decision is made.
+- **Why a separate container:** API deploys would otherwise drop the live connection,
+  and only one receiver may run per account.
+- **Why it posts to the API:** without Redis, only the API process can update the inbox.
+  The container holds the connection and protocol state; the API owns all database
+  writes. The private sidecar works the same way, with calls in the other direction.
+- **Sends** go API -> container -> one SDK attempt. An unknown outcome is recorded as
+  unknown, keeps the draft and is never retried (`ThreadsSendJournal` records it).
 
-## Adapter boundary and message lifecycle
+## What the SDK gives the adapter today
 
-An API-side provider dispatcher selects the existing Instagram implementation or
-a future Threads adapter by stored ChannelAccount/Conversation identity. The
-Threads adapter owns the independently versioned SDK and maps verified results
-into provider-neutral inbound events. The SDK knows nothing about Prisma, shop
-commerce, prompts, or admin UI.
+| Need | SDK | Evidence |
+| --- | --- | --- |
+| Live messages from every inbox chat | `ThreadsDmIncoming` without `threadId`; `threadFbid` on each message and change | E23 |
+| New customers | Not on the live connection; poll `listThreads` on the Message requests folder | E14 |
+| Customer name, username, avatar | `ThreadSummary.members` | E12, E21 |
+| Unread state, mark read | `ThreadSummary.unread`, `markThreadRead({ threadId })` | E21, E22 |
+| History and catch-up | `listMessages` / `allMessages` per chat | E1–E3 |
+| Text, image, shared post; others as `unsupported` | `DmMessage` union | E11 |
+| Reactions, edits, unsends, reads | `onChange` (`DmChange`) | E16 |
+| Reply with text, quote, photo | `ThreadsTextSendAttempt` (`replyToMessageId`), `ThreadsImageSendAttempt` | E14, E17, E18 |
 
-Persist a normalized inbound message and its provider deduplication key in one
-transaction; advance the verified sync checkpoint only after durable persistence.
-Then invoke the existing processCustomerMessage entry point and publishChatChange.
-Preserve inboundRevision/readThroughRevision and existing handoff/cart workflows.
-Maintain one bounded sync worker per account; use a lease if multiple API workers
-can run. The current EventEmitter is process-local; multi-process inbox deployment
-requires shared event delivery as a separate deployment change.
+Image URLs expire; the adapter must copy images into Shop-AI's own media storage on
+receipt. Whether those URLs work without the session's cookies is not yet checked.
 
-Outbound operations first create a durable pending attempt, then call the selected
-provider once. A verified ack records acceptance; receiving-account confirmation
-is a research requirement, not a runtime delivery claim. Timeout/disconnect or
-unusable ack records unknown, retains the draft, and requires reconciliation.
-Never automatically repeat an unknown send. Serialize sends conservatively and
-stop on expired auth, returning an operator reauthentication requirement. Do not
-automatically launch a browser or rotate accounts to recover.
+## Not ready
 
-Keep Instagram webhook verification, read receipts, reactions, story handling,
-private unsend behavior, and send validation unchanged. Represent Threads text
-send/read/sync as capabilities only once verified. Hide/disable unsupported image,
-reaction, unsend and read-receipt actions; do not infer them from Instagram support.
-Start Threads in read-only mode with AI replies disabled until operator acceptance.
+- **Reconnect.** `ThreadsDmInbox` replaces a dropped receiver and reports `live`,
+  `reconnecting` and `needs-owner`, but it is tested only with synthetic sockets, and
+  whether stored setup packets work after a drop is open (E19). The inbox must show
+  `needs-owner` as "disconnected" truthfully.
+- **Session capture and storage.** The capture command is Phase 5 and needs D6
+  (approval to move session data to the homelab).
+- **Real customers.** D3 (retention and deletion) is open; start read-only with AI off.
 
-## Inbox, commerce and rollout checks
+## Rollout
 
-Use internal conversation/customer/message IDs for the shared inbox and commerce
-cards. Display the source platform and provider identity explicitly; avoid labeling
-Threads users with Instagram fields. Existing shop reservations, payment flows,
-shipments and agent tools should continue using internal customer IDs. Keep channel
-credentials and private protocol state on the API/worker side, never in admin.
+1. Schema and channel dispatcher, with Instagram behaviour unchanged and tested.
+2. Threads read-only for one shop: receive, persist, show in the inbox, AI off.
+3. Staff-approved replies after D1.
+4. Whatever D7 allows.
 
-Future implementation must test: same provider ID on different platforms/accounts;
-Instagram backfill counts; unchanged existing Instagram send/webhook behavior;
-duplicate ingestion; checkpoint crash/restart; auth expiry; uncertain send handling;
-operator identity linking; handoff/read state; and capability-limited inbox actions.
-Run applicable Shop-AI checks only in that separately authorized integration task.
+Tests to add in Shop-AI: the same provider ID on Instagram and Threads, duplicate
+delivery, restart and catch-up, session expiry, an uncertain send, and inbox actions
+hidden where Threads has no capability.
