@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tiemdosime Bot Fixer"
+  short_description: "Fix spec review findings and document resolutions"
+  default_prompt: "Use $tiemdosime-bot-fixer for the current active OpenSpec change unless I supply a spec name; fix verified review findings, record solutions in the same files, and report results."
