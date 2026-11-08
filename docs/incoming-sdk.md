@@ -83,6 +83,23 @@ with `callback-failed`. Malformed or unknown change shapes are skipped. Each was
 live (E16-E18-CUSTOMER-LIVE-20261107); the SDK delivered reactions, removals and reads live
 (E16-E18-SDK-LIVE-20261107), edits and unsends only in tests. The customer's read receipt is not observed.
 
+## Reconnecting: `ThreadsDmInbox`
+
+`ThreadsDmInbox` keeps one receiver running and replaces it after a drop. It takes the
+receiver's options except `session`, plus `getSession()`, which returns setup for each new
+connection (stored packets, or a fresh capture from the owner's browser; which one works after
+a drop is open, see E19) or `undefined` when the owner must act. After every reconnect it
+calls `reconcile()` while live delivery already runs, so the host can read recent chats and
+drop duplicates by message ID. Delivery is at-least-once.
+
+`onState` reports `live`, `reconnecting` (with the error) and an end state:
+`needs-owner` (no session, an invalid one, or `maxAttempts` failed attempts, default 5),
+`failed` (a protocol error, a rejected callback or a rejected `reconcile`) or `stopped`.
+Only `reconnect-required`, `connection-failed` and `timeout` are retried, with delays doubling
+from 1 s up to `maxBackoffMs` (default 60 s). A connection must stay up a minute to reset the
+attempt count. `closed` resolves on `stop()` and rejects with the last error otherwise. The
+inbox never sends and never logs in. Tested only with synthetic sockets.
+
 Local resource limits are conservative: 1 MiB per frame, 2 MiB for a received
 buffer and 4096 frames/fields/deltas per parsed batch. Exceeding one stops the
 receiver. The dedupe set holds 10000 IDs and evicts the oldest; durable dedupe

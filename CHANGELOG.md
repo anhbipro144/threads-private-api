@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `ThreadsDmInbox` replaces a dropped receiver with capped backoff, using a host-supplied
+  `getSession()`, runs a host `reconcile()` after each reconnect, and reports `live`,
+  `reconnecting`, `needs-owner`, `failed` and `stopped`. Synthetic tests only.
 - `ThreadsIncomingOptions.threadId` is optional; without it the receiver delivers every chat
   on the connection (E23). `DmChange` adds `threadFbid`.
 - `ThreadSummary` adds `members` (`ThreadMember`: `id`, `username`, `name`, `avatarUrl`) and
