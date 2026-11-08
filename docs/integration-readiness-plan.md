@@ -26,9 +26,9 @@ The first four block Phase 2. A "no" on D1 or D2 ends this plan: see
 | D2 | Which account carries the risk? | A restriction could also stop official-API publishing on the same account | Accept losing that account as the worst case, or do not use the shop's main account |
 | D3 | Real-customer data rules | Real chats hold other people's data: lawful basis, retention, deletion | Decide retention and deletion before Phase 6 |
 | D4 | A third owner-controlled test account and a second consented chat | New-chat and multi-chat behavior cannot be observed with one existing chat | Add account C; update `AGENTS.md` scope when approved |
-| D5 | Batch approval for test scripts | Soak tests need many messages, and each needs exact approval | Owner approves a written list of sender, recipient, exact text and count per run |
+| D5 | Standing permission for main-account tests | Avoid interrupting the owner for routine main-account steps | Operate freely as A in the two agreed chats; ask before operating as B or C. Follow `AGENTS.md` and report live actions afterwards |
 | D6 | May session data move to the homelab? | Earlier transfer was rejected for lacking explicit destination approval, and homelab use is untested | Approve transfer to that destination, in private storage only |
-| D7 | May the AI send without a person? | Repository rules require per-message approval for live tests; production policy is undecided | AI drafts, staff approve. Revisit after Phase 6 |
+| D7 | May the AI send to production customers without a person? | Standing permission covers controlled tests only; production policy is undecided | AI drafts, staff approve. Revisit after Phase 6 |
 
 ### Decisions recorded on 2026-11-07
 
@@ -41,9 +41,9 @@ identifiers. Each decision below grants only what it states.
 | D2 | Decided by owner | The owner-named account carries the risk, and its loss is accepted as the worst case |
 | D3 | Open | Needed before Phase 6 |
 | D4 | Decided by owner | The owner named three controlled accounts: the shop's account (A, also the D2 risk account) and two customer accounts (B, C). C has never messaged A. `AGENTS.md` scope now covers them; handles stay out of the repository |
-| D5 | Decided by owner | Batch approval is accepted. Each run still needs its own written list of sender, recipient, exact text and count, approved before that run. No list has been approved yet |
+| D5 | Standing permission clarified 2026-11-08 | The agent may operate freely as main test account A in the two agreed chats, including choosing low-volume test messages and performing capture sends, without separate run approval. Operating as customer B or C, including customer-side receipt checks, requires asking the owner. Report live actions afterwards; `AGENTS.md` controls the scope |
 | D6 | Open for remote; local decided | 2026-11-08: the owner approved storing session data on their own machine, one file per shop, owner-only permissions, outside both repositories. Moving it off that machine (homelab, Phase 6) still needs D6 |
-| D7 | Open | Needed before any AI send |
+| D7 | Open for production | Needed before AI sends to production customers; main-account controlled tests are covered by D5 |
 
 Because the main test account is also the risk-bearing account, a mistake or an
 enforcement action during testing affects that same account.
@@ -71,14 +71,14 @@ These stay true in every phase:
 | Non-text message breaks a read | `parseMessageList` throws on a missing `text_body`; the receiver stops with `protocol-rejected` | Offline test showed the throw with a synthetic photo | 1, 3 |
 | Customer name and avatar | Threads return only `id`; messages only `senderFbid` | `WmiSlideAsyncFetchAndInsertThreadQuery` returns members (OBSERVED) | 3 |
 | New customer's first message | Receiver needs a known `threadId`, and others are dropped | Subscription can hold mailbox-wide deltas (documented). Mailbox `folder` variable hints at a separate requests folder (HYPOTHESIS) | 3, 4 |
-| Only one chat works per capture | Pagination and send are tied to a captured chat | Rewriting `thread_fbid` is untested for other chats | 3 |
+| Only one chat works per capture | `ThreadsTextSendAttempt.threadId` targets another chat; one browser-captured template sent a text and a quote reply there, each acknowledged and read back once. Owner independently confirmed both arrived (VERIFIED delivery, E25-CAPTURE-CROSS-CHAT-20261108) | Older-page reads in another chat remain untested because pagination binds a Relay node ID; send-template expiry remains unknown | 3 |
 | Mailbox paging | Cursor variable unknown, never run live | Needs observation | 3 |
 | Receive and send photos | Unsupported | `wmiSlideSendMediaMessage`, `useBarcelonaMessagesSendMedia` (static only) | 3 |
 | Reactions, read state, unsend, edit | Ignored | `WmiSlideThreadMutationsMarkReadMutation` (OBSERVED); `wmiSlideSendEditMessage` (static); delta `__typename` dispatch | 3 |
-| Quote replies | Sender rejects `replied_to_message_id` | Variable exists in the observed mutation; value never seen set | 3 |
+| Quote replies | `replyToMessageId` works with `threadId`; a quote into another chat matched the customer's quoted ID in a Node read (REPRODUCED). Owner confirmed delivery (VERIFIED, E25-CAPTURE-CROSS-CHAT-20261108) | Bounded text-quote support checked; other message kinds and receiving-UI quote presentation are outside this run | 3 |
 | Stream dies on any drop | No reconnect; needs fresh browser packets | Whether Node can start a subscription alone is unknown. This is the hardest gap | 4 |
 | Restart-safe receiving | In-memory dedupe, 10,000-ID limit stops the receiver, async callbacks not serialized, rejection loses the event | Host-owned checkpoint plus read reconciliation | 1, 4 |
-| Session capture | No tool in the repo; old helpers were in `/private/tmp` | Prior in-memory broker design | 5 |
+| Session capture | `pnpm capture-session` captures reading and receiving; optional `--with-send --thread …` saves a send template from the owner or authorized agent's message, with placeholder text and no send by the command. Checked live in E25-CAPTURE-CROSS-CHAT-20261108 | Session and send-template lifetime remain unknown (E20); owner handles authentication and challenges | 5 |
 | Real expiry and renewal | Never observed; tokens change on reload; rejection code does not prove expiry | Needs a real lifetime measurement | 5 |
 | Protocol changes | Persisted `doc_id` values captured, drift undetected | Fail closed and report as a distinct error | 5 |
 | Linux and homelab | Live runs only on macOS arm64 | Blocked on D6 | 6 |

@@ -57,10 +57,11 @@ The directory must already exist, belong to the user and be closed to everyone e
 `loadThreadsSession(file)` refuses links, files others can read and malformed contents,
 with an error that names no path. Keep the file outside every repository; one per account.
 
-From a checkout of this repository, the owner runs, with Chrome open and logged in:
+From a checkout of this repository, the owner or an authorized agent runs, with
+Chrome open and logged in:
 
 ```sh
-pnpm capture-session --username <shop account> --out <absolute file> [--thread <chat id>]
+pnpm capture-session --username <shop account> --out <absolute file> [--thread <chat id to open>] [--with-send (requires --thread)]
 ```
 
 It attaches to that Chrome (Chrome asks the owner to allow it), opens its own tab, confirms
@@ -68,8 +69,50 @@ the account, opens one chat (which marks it read) and the Message requests folde
 the inbox form from the requests form with `folder: "INBOX"` (the inbox list request does not
 fire in the page; E21). It then saves the file, then checks it with one inbox read and one receiver connection. It prints
 only step results, never session values. It never logs in or answers a challenge: if the tab
-is not logged in as that account, it stops. It does not capture sending or mark-read yet.
+is not logged in as that account, it stops. Without `--with-send`, it captures reading
+and receiving only. Mark-read capture is not included.
 Run it again to replace an expired session.
+
+### Optional send template
+
+Use this step when the host needs to reply from the saved session. **You or an
+authorized agent type and send one real message in the capture tab** to an agreed
+test customer; the command only observes. In this repository, the agent may operate
+as main test account A in its two agreed chats; using customer account B or C
+requires asking the owner (`AGENTS.md`). For example,
+replacing the placeholders with your account, private file and test chat:
+
+```sh
+pnpm capture-session --username <shop account> --out <absolute file> --thread <test chat id> --with-send
+```
+
+`--with-send` requires `--thread`. The capture tab opens in the foreground. After the
+reading and receiver setup, it opens the named chat and prints one prompt. Send one
+plain text there within 3 minutes, with no quote, mention or attachment. The command
+does not type, click Send or send a message itself. Opening the chat marks it read.
+
+It takes the first new text-send request and validates that it targets the opened chat.
+The sender ID comes from the first inbox page's member matching the captured username.
+Only then does it save the session, including `send` (the observed form, its headers
+and sender ID). The typed text is replaced by `Captured plain-text template`.
+The file still contains private session credentials; keep it outside repositories.
+
+On success, `sendTemplateCaptured true` appears before saving. After loading the saved
+file, the command constructs an attempt for another inbox chat (or the captured chat
+when it is the only one) and prints `sendTemplateUsable true`. It never calls `send()`;
+the operator's one message in the tab is the only send during capture. Normal inbox and receiver
+checks also run. Without the flag, no send prompt or send-template steps appear.
+
+Failures save nothing and leave any existing session file in place:
+
+- `sendTemplateMissing; nothing saved`: no text-send request within the wait, including
+  an attachment-only send. Do not send after the wait ends.
+- `sendTemplateUnusable; nothing saved`: wrong chat, quote, mention or malformed template.
+- `senderUnconfirmed; nothing saved`: no matching account member in the first inbox page.
+- `capture incomplete; nothing saved`: required reading or receiver setup is missing.
+
+No failure retries a message. A capture failure does not undo the operator's message;
+check the chat before deciding on any later test.
 
 ## Optional durable send journal
 

@@ -68,12 +68,16 @@ challenges in their existing browser. See [sessions/errors](docs/usage-guide/ses
 ```ts
 import { ThreadsTextSendAttempt } from 'threads-private-api';
 
-const attempt = new ThreadsTextSendAttempt({ capture: capturedSend, text: reviewedText });
+const attempt = new ThreadsTextSendAttempt({
+  capture: capturedSend, text: reviewedText, threadId: chosenThreadId,
+});
 // Constructor prepares only. Review sender, recipient and text; approve one send.
 const acknowledgement = await attempt.send();
 ```
 
-The captured conversation is fixed and acknowledgement fields checked. Each live
+`threadId` targets another existing chat of the account; omit it to use the captured
+chat. Empty IDs are refused. `replyToMessageId` quotes a message read from the target
+chat. Acknowledgement fields must match that target. Each live
 message needs approval for exact sender, recipient, content and count. Check
 receipt independently. `ThreadsSendOutcomeUnknownError` means delivery may have
 happened: never retry or construct another attempt for that uncertain message.

@@ -9,6 +9,8 @@ export interface ThreadsTextSendCapture extends ThreadsReadRequest {
 export interface ThreadsTextSendOptions {
   readonly capture: ThreadsTextSendCapture;
   readonly text: string;
+  /** Target chat instead of the one in the captured template. */
+  readonly threadId?: string;
   /** Quote this message (a `messageId` from a read of the same conversation), as the web client does. */
   readonly replyToMessageId?: string;
   readonly fetchImpl?: typeof fetch;
@@ -50,7 +52,7 @@ function freshOfflineId(captured: string): string {
   return offlineId.toString();
 }
 
-/** Experimental single attempt in the captured conversation; no retry or storage. */
+/** Experimental single attempt in a chosen conversation; no retry or storage. */
 export class ThreadsTextSendAttempt {
   readonly #body: string;
   readonly #headers: Readonly<Record<string, string>>;
@@ -88,11 +90,15 @@ export class ThreadsTextSendAttempt {
     if (options.replyToMessageId !== undefined && !nonempty(options.replyToMessageId)) {
       throw new Error('Threads send: reply target must be a nonempty message ID');
     }
-    this.#thread = variables['thread_fbid'];
+    if (options.threadId !== undefined && !nonempty(options.threadId)) {
+      throw new Error('Threads send: threadId must be nonempty');
+    }
+    this.#thread = options.threadId ?? variables['thread_fbid'];
     this.#sender = options.capture.senderFbid;
     this.#text = options.text;
     this.#offlineId = freshOfflineId(variables['offline_threading_id']);
     variables['text_body'] = { sensitive_string_value: this.#text };
+    variables['thread_fbid'] = this.#thread;
     variables['offline_threading_id'] = this.#offlineId;
     variables['replied_to_message_id'] = options.replyToMessageId ?? null;
     form.set('variables', JSON.stringify(variables));

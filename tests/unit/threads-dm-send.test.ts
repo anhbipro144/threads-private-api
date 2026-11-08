@@ -133,3 +133,46 @@ test('a reply target is sent as replied_to_message_id; the captured form stays a
   assert.equal(sent?.['replied_to_message_id'], 'mid.$synthetic');
   assert.throws(() => new ThreadsTextSendAttempt({ capture: capture(), text: 'reply', replyToMessageId: ' ' }), /reply target/);
 });
+
+test('targets another chat, with or without a quote, without changing the capture', async () => {
+  for (const quote of [undefined, 'message-in-B']) {
+    const original = capture();
+    const attempt = new ThreadsTextSendAttempt({
+      capture: original, text: 'reply in B', threadId: 'thread-B',
+      ...(quote === undefined ? {} : { replyToMessageId: quote }),
+      fetchImpl: async (_url, init) => {
+        const v = JSON.parse(new URLSearchParams(String(init?.body)).get('variables')!);
+        assert.equal(v.thread_fbid, 'thread-B');
+        assert.equal(v.replied_to_message_id, quote ?? null);
+        return new Response(JSON.stringify(acknowledgement(init)));
+      },
+    });
+    assert.equal((await attempt.send()).messageId, 'message-new');
+    assert.equal(JSON.parse(new URLSearchParams(original.body).get('variables')!).thread_fbid, 'thread-A');
+  }
+});
+
+test('refuses empty or invalid target chat IDs before dispatch', () => {
+  let calls = 0;
+  for (const threadId of ['', '   ', null, 42]) {
+    assert.throws(() => new ThreadsTextSendAttempt({ capture: capture(), text: 'draft',
+      threadId: threadId as string, fetchImpl: async () => { calls++; return new Response(); },
+    }), /threadId must be nonempty/);
+  }
+  assert.equal(calls, 0);
+});
+
+test('an echo for the captured chat is unknown when another chat was targeted', async () => {
+  let calls = 0;
+  const attempt = new ThreadsTextSendAttempt({ capture: capture(), text: 'reply', threadId: 'thread-B',
+    fetchImpl: async (_url, init) => {
+      calls++;
+      const result = acknowledgement(init);
+      result.data.send_slide_text_message.as_micg_interface.thread_fbid = 'thread-A';
+      return new Response(JSON.stringify(result));
+    },
+  });
+  await assert.rejects(attempt.send(), ThreadsSendOutcomeUnknownError);
+  await assert.rejects(attempt.send(), /consumed/);
+  assert.equal(calls, 1);
+});

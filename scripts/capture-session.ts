@@ -2,12 +2,13 @@
 // memory and saves it to a private file. It never logs in, answers a challenge or prints session values.
 import { parseArgs } from 'node:util';
 import { StdioMcp } from './verification/stdio-mcp.ts';
-import { ThreadsDmIncoming, ThreadsDmReader, loadThreadsSession, saveThreadsSession, sessionFromCapturedForms } from '../src/index.ts';
-import type { ThreadsIncomingSession } from '../src/index.ts';
+import { ThreadsDmIncoming, ThreadsDmReader, ThreadsTextSendAttempt, loadThreadsSession, saveThreadsSession, sessionFromCapturedForms } from '../src/index.ts';
+import type { ThreadsIncomingSession, ThreadsTextSendCapture } from '../src/index.ts';
+import { captureSendTemplate, SEND_TEMPLATE_PLACEHOLDER } from './capture-send-template.ts';
 
-const { values: { username, out, thread } } = parseArgs({ options: { username: { type: 'string' }, out: { type: 'string' }, thread: { type: 'string' } } });
-if (!username || !/^[A-Za-z0-9._]+$/.test(username) || !out || (thread !== undefined && !/^\d+$/.test(thread))) {
-  console.error('usage: pnpm capture-session --username <shop account> --out <absolute file> [--thread <chat id to open>]');
+const { values: { username, out, thread, 'with-send': withSend } } = parseArgs({ options: { username: { type: 'string' }, out: { type: 'string' }, thread: { type: 'string' }, 'with-send': { type: 'boolean' } } });
+if (!username || !/^[A-Za-z0-9._]+$/.test(username) || !out || (thread !== undefined && !/^\d+$/.test(thread)) || (withSend && !thread)) {
+  console.error('usage: pnpm capture-session --username <shop account> --out <absolute file> [--thread <chat id to open>] [--with-send (requires --thread)]');
   process.exit(2);
 }
 const step = (label: string, value?: unknown) => console.log(value === undefined ? label : `${label} ${JSON.stringify(value)}`);
@@ -59,10 +60,11 @@ function parseRequest(text: string) {
 
 let threadListBody: string | undefined, messageListBody: string | undefined, requests: ReturnType<typeof parseRequest> | undefined;
 let incoming: ThreadsIncomingSession | undefined;
+let send: ThreadsTextSendCapture | undefined;
 await mcp.initialize();
 try {
   const known = new Set(ids(await call('list_pages', {}, 180_000)));
-  const pageId = Number(ids(await call('new_page', { url: 'about:blank', background: true })).find(id => !known.has(id)));
+  const pageId = Number(ids(await call('new_page', { url: 'about:blank', background: !withSend })).find(id => !known.has(id)));
   if (!Number.isInteger(pageId)) throw new Error('cannot identify the capture tab');
   try {
     await call('navigate_page', { pageId, type: 'url', url: 'https://www.threads.com/messages', initScript: hook, timeout: 45_000 });
@@ -121,6 +123,36 @@ try {
       if (!incoming) await delay(2_000);
     }
     step('receiverSetupCaptured', !!incoming);
+
+    if (withSend) {
+      if (!threadListBody || !messageListBody || !requests || !incoming) throw new Error('capture incomplete; nothing saved');
+      const inbox = await new ThreadsDmReader({ session: sessionFromCapturedForms({
+        threadListBody, messageListBody, headers: requests.headers,
+      }) }).listThreads();
+      await call('navigate_page', { pageId, type: 'url', url: `https://www.threads.com/messages/t/${thread}`, timeout: 45_000 });
+      const requestIds = (listing: string) => [...listing.matchAll(/reqid=(\d+) POST \S*graphql\S*/g)].map(match => match[1]!);
+      const beforeSend = new Set(requestIds(await call('list_network_requests', { pageId, resourceTypes: ['xhr', 'fetch'] })));
+      step('Send one plain text message yourself in the opened test chat (no quote or mention); waiting up to 3 minutes.');
+      const deadline = performance.now() + 180_000;
+      while (!send && performance.now() < deadline) {
+        await delay(Math.min(2_500, Math.max(0, deadline - performance.now())));
+        if (performance.now() >= deadline) break;
+        const remaining = () => Math.max(1, Math.min(60_000, deadline - performance.now()));
+        const listing = await call('list_network_requests', { pageId, resourceTypes: ['xhr', 'fetch'] }, remaining());
+        for (const reqid of requestIds(listing)) {
+          if (beforeSend.has(reqid) || performance.now() >= deadline) continue;
+          beforeSend.add(reqid);
+          const request = parseRequest(await call('get_network_request', { pageId, reqid: Number(reqid) }, remaining()));
+          if (name(new URLSearchParams(request.body)) !== 'WmiSlideTextMessageMutation') continue;
+          const result = captureSendTemplate(request, inbox, username, thread!);
+          if ('reason' in result) throw new Error(`${result.reason}; nothing saved`);
+          send = result.send;
+          break;
+        }
+      }
+      if (!send) throw new Error('sendTemplateMissing; nothing saved');
+      step('sendTemplateCaptured', true);
+    }
   } finally {
     await call('close_page', { pageId }).catch(() => step('captureTabCloseFailed'));
   }
@@ -133,6 +165,7 @@ if (!threadListBody || !messageListBody || !requests || !incoming) {
 await saveThreadsSession(out, {
   version: 1, username, capturedAt: new Date().toISOString(),
   forms: { threadListBody, messageListBody, headers: requests.headers }, requestsListBody: requests.body, incoming,
+  ...(send ? { send } : {}),
 });
 step('saved', true);
 
@@ -140,5 +173,12 @@ step('saved', true);
 const saved = await loadThreadsSession(out);
 const inbox = await new ThreadsDmReader({ session: sessionFromCapturedForms(saved.forms) }).listThreads();
 step('inboxRead', { chats: inbox.threads.length });
+if (withSend) {
+  if (!saved.send) throw new Error('sendTemplateUnusable');
+  new ThreadsTextSendAttempt({ capture: saved.send, text: SEND_TEMPLATE_PLACEHOLDER,
+    threadId: inbox.threads.find(chat => chat.id !== thread)?.id ?? thread!,
+  });
+  step('sendTemplateUsable', true);
+}
 const receiver = new ThreadsDmIncoming({ session: saved.incoming, onMessage() {} });
 try { await receiver.start(); step('receiverReady', true); } finally { receiver.stop(); }

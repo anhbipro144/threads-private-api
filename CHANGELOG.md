@@ -2,10 +2,19 @@
 
 ## Unreleased
 
+- `ThreadsTextSendAttempt.threadId` targets another existing chat from one captured
+  plain-text template, including quote replies. Omit it to keep the captured chat;
+  empty IDs are refused and acknowledgements must match the chosen chat.
+- `pnpm capture-session --with-send --thread <chat id>` waits up to 3 minutes for one
+  plain text sent in the capture tab by the owner or an authorized agent, validates
+  the observed send template and saves it with a
+  placeholder instead of the message text. Missing or unusable sends save nothing;
+  `sendTemplateUsable` checks the loaded template without sending.
 - `saveThreadsSession` / `loadThreadsSession` keep one capture per account in a private file
   (mode 0600, owner-only directory, no links). `pnpm capture-session` (repository only, not
   in the package) captures it from the owner's logged-in Chrome and checks it with one read
-  and one connection. It captures reading and receiving; not sending or mark-read yet.
+  and one connection. By default it captures reading and receiving; sending is opt-in,
+  and mark-read capture is not included.
 - `ThreadsDmInbox` replaces a dropped receiver with capped backoff, using a host-supplied
   `getSession()`, runs a host `reconcile()` after each reconnect, and reports `live`,
   `reconnecting`, `needs-owner`, `failed` and `stopped`. It skips messages it already delivered

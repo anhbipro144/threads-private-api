@@ -23,10 +23,26 @@ The work is limited to the owner's authenticated accounts and consented test con
   shop's account and the third account. Handles stay out of the repository.
 - The owner performs authentication. Never bypass login challenges, access controls, or platform protections.
 - Never inspect unrelated conversations, collect third-party private data, or perform bulk messaging.
-- The owner allowed (2026-11-07) the agent to operate freely within the three test
-  accounts and their chats with each other: read, navigate, capture, accept requests,
-  and send low-volume test messages, without asking first. Report each live action
-  afterwards. This never covers other accounts or chats, bulk messaging, or settings.
+- The owner clarified (2026-11-08) standing permission to operate freely as the
+  main test/shop account (A), within its two agreed customer test chats. This
+  includes reading, navigating, capturing sessions, accepting requests, marking
+  read, and sending or managing low-volume test messages through the UI or SDK.
+  The agent may choose test text and counts and perform capture-message steps
+  itself, without asking the owner to act or approve each run. Report each live
+  action afterwards. This never covers unrelated chats, bulk messaging, account
+  settings, or production customer messaging.
+- Ask the owner before operating as either customer test account (B or C),
+  including switching to it, reading its inbox, capturing its session, sending
+  from it, or checking receipt from its side. Sending from A into the agreed
+  chats with B and C is covered by A's standing permission.
+- During a capture as A, the agent may type and send the test message in the
+  capture tab; the capture command itself only observes and never types or sends.
+  Completed experiment records may describe earlier per-message approvals or
+  owner-typed sends; they do not require repeating those steps in later tests.
+  Ask the owner when necessary information or access is unavailable,
+  authentication needs their action, or work leaves this scope. Independent
+  customer-side receipt checks require the owner's report or permission to
+  operate that customer account.
 - Never retry a message when delivery status is uncertain.
 - Keep credentials and browser state outside the repository.
 - The owner allowed (2026-11-07) reading message contents and IDs of the agreed test

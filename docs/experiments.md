@@ -22,12 +22,69 @@ and independently confirmed exactly one receipt on B.
   at a time with at least 5 seconds between manual experiments, no automatic
   polling loop. Record provider rate signals; this is a research bound, not a
   discovered platform rate limit.
-- Sending is disabled until the owner authorizes exact test sender, recipient,
-  content and count. Use one unique test message, then independently check receipt.
+- Standing owner permission in `AGENTS.md` covers operating as the main test
+  account in its two agreed customer chats, including low-volume capture sends.
+  Ask before operating either customer account or checking receipt from its side;
+  report each live action afterwards. Older exact-message approval requirements
+  below describe those historical runs.
 - No automatic uncertain-send retry. Timeout, dropped response, or malformed ack
   means unknown outcome until reconciled with the receiving test account.
 - Stop on login challenge, unexpected account content, or access-control barrier.
   Do not bypass security or broaden account/recipient scope.
+
+## E25-CAPTURE-CROSS-CHAT-20261108 — captured template and replies in another chat
+
+Hypothesis: the owner-run capture can save a reusable plain-text send template,
+and the compiled SDK can use it for a text reply and a quote reply in another
+controlled chat by passing `threadId`.
+
+Test environment: owner's existing Chrome via `--autoConnect`, main test account
+and its two agreed customer chats; compiled `dist/index.js`. The owner approved
+the three-message list in chat before the run. Standing permission was subsequently
+clarified to allow the agent to operate freely as the main test account, including
+capture sends; operating either customer account still requires asking the owner.
+
+Controlled actions and results:
+
+- **OBSERVED:** `pnpm capture-session --with-send --thread …` opened the first test
+  chat. One owner-typed plain text was captured as the send template. Reading,
+  receiver setup, saving, inbox read and receiver readiness all succeeded. The
+  capture tab closed and its receiver stopped.
+- **REPRODUCED:** `sendTemplateUsable true` validated the loaded send template
+  without sending. A separate value-free check confirmed its text was the fixed
+  placeholder and the saved file contained none of the typed capture text. The
+  private file was mode 0600 in an owner-only directory outside both repositories;
+  the existing website session file was not replaced.
+- **REPRODUCED:** a Node read confirmed both controlled chat identities from inbox
+  members and found exactly one capture message from the shop in the first chat.
+- **REPRODUCED:** the compiled SDK sent one plain text and one quote reply into
+  the second chat, using the first chat's saved template with `threadId`. Each
+  made one attempt and validated its acknowledgement. After each send, one Node
+  read found exactly one new item with the acknowledged ID, timestamp, shop sender
+  and exact approved text. The quote's `repliedToMessageId` matched that customer's
+  latest message. Both sends are consumed; no repeat is needed or permitted.
+- **VERIFIED delivery:** the owner independently confirmed both messages arrived
+  on the third account. The quote target was checked in the Node read above;
+  no separate claim about the receiving UI's quote presentation is made. The
+  connected Chrome exposed only the main account, so no customer-account switch,
+  logout or new login was attempted. The temporary profile-inspection tab closed.
+
+Transport: one captured `WmiSlideTextMessageMutation` form; two Node POSTs to the
+existing GraphQL endpoint. Only booleans and counts were printed by the runner.
+No raw network capture, credentials, handles, message IDs or texts were added here.
+
+Offline validation after the run: `pnpm typecheck`, all **99 unit tests**,
+`pnpm build` and `pnpm verify:package` passed. The packed SDK passed **92
+installed-package tests**, JS/TS consumer checks and the offline example.
+
+Connection note: the sandboxed capture failed before opening its tab. A read-only
+connection diagnostic succeeded outside the local network sandbox; the approved
+capture then ran there. This was not a send retry.
+
+Known limitations: this bounded run does not test template expiry, browser-closed
+sending, photo targeting, duplicate submissions, production use or pagination in
+another chat. No website change, deployment, commit or push. The controlled run
+is complete; review the change before archiving. Never resend these test messages.
 
 ## Latest sending receipt checkpoint (2026-10-28)
 
