@@ -32,6 +32,42 @@ and independently confirmed exactly one receipt on B.
 - Stop on login challenge, unexpected account content, or access-control barrier.
   Do not bypass security or broaden account/recipient scope.
 
+## E26-IMAGE-URL-20261109 — received image URL downloads without cookies
+
+Hypothesis: the `url` of a received `image` message can be downloaded without the
+shop's session, and carries a lifetime long enough for Shop-AI to copy the file.
+
+Test environment: the owner's saved session file (mode 0600, owner-only directory
+outside both repositories) and the compiled SDK `ThreadsDmInbox` from the Shop-AI
+install (`0.3.0-beta.2`). Chrome was not used. The Shop-AI API was stopped, so
+nothing was saved to the shop database. A private helper outside both repositories
+acted only on images from chats already recorded by the shop, which is the one
+agreed test chat; images from any other chat would have been ignored unread. It
+stopped the receiver after the first image. The agent sent nothing.
+
+Controlled actions and results, **OBSERVED** once:
+
+- The receiver reached `live` and delivered one `image` message (one image, SDK size
+  1080×1440) from the agreed test chat within seconds. It was an image already in
+  that chat, not a newly sent one.
+- The URL is on the `fbcdn.net` CDN. Its query parameters are `_nc_*` routing
+  values, `ccb`, `oe`, `oh` and `stp`. `oe` is a hex Unix time; here it decoded to
+  about 30 days after the observation (2026-12-09). `oh` looks like a signature.
+- Shop-AI's `downloadPublicImage` (no cookies, pinned public IPv4, image types and
+  size bounded) fetched it on the first attempt: a valid PNG, 1080×1440, about 1.2 MB.
+
+Only these facts were printed. The URL was kept for a later recheck in a private
+0600 file outside both repositories; no URL, ID, image or message content was added here.
+
+Conclusion: a host can copy received images with a plain HTTPS GET, without the
+session. This answers the readiness plan's "documented way to fetch files" for
+images, pending the recheck. Store the copy promptly anyway; `oe` is the
+provider's claim, not an observed lifetime.
+
+Known limitations: one image, not freshly sent; the URL was not yet rechecked after
+hours; JPEG, larger files and multi-image messages are untested; whether `oe` is
+always about 30 days is unknown. No website change, commit or push.
+
 ## E25-CAPTURE-CROSS-CHAT-20261108 — captured template and replies in another chat
 
 Hypothesis: the owner-run capture can save a reusable plain-text send template,
