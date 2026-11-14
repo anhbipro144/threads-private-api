@@ -39,10 +39,10 @@ identifiers. Each decision below grants only what it states.
 | --- | --- | --- |
 | D1 | Decided by owner | Owner states Meta's terms allow this use and accepts the risk. No supporting document was supplied or checked, so this is the owner's determination rather than a verified terms review |
 | D2 | Decided by owner | The owner-named account carries the risk, and its loss is accepted as the worst case |
-| D3 | Open | Needed before Phase 6 |
+| D3 | Decided by owner 2026-11-13 | Real customers' Threads messages (and their images) are kept with no time limit until the owner deletes the conversation. Shop-AI has no conversation deletion yet; that is a separate feature |
 | D4 | Decided by owner | The owner named three controlled accounts: the shop's account (A, also the D2 risk account) and two customer accounts (B, C). C has never messaged A. `AGENTS.md` scope now covers them; handles stay out of the repository |
 | D5 | Standing permission clarified 2026-11-08 | The agent may operate freely as main test account A in the two agreed chats, including choosing low-volume test messages and performing capture sends, without separate run approval. Operating as customer B or C, including customer-side receipt checks, requires asking the owner. Report live actions afterwards; `AGENTS.md` controls the scope |
-| D6 | Open for remote; local decided | 2026-11-08: the owner approved storing session data on their own machine, one file per shop, owner-only permissions, outside both repositories. Moving it off that machine (homelab, Phase 6) still needs D6 |
+| D6 | Open for remote; local decided | 2026-11-08: the owner approved storing session data on their own machine, one file per shop, owner-only permissions, outside both repositories. Moving it off that machine (homelab, Phase 6) still needs D6. 2026-11-13: on hold until a Shop-AI spec sets up a shop's Threads session alongside its Instagram private and official sessions |
 | D7 | Open for production | Needed before AI sends to production customers; main-account controlled tests are covered by D5 |
 
 Because the main test account is also the risk-bearing account, a mistake or an

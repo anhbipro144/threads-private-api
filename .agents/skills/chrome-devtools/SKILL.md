@@ -3,6 +3,24 @@ name: chrome-devtools
 description: Uses Chrome DevTools via MCP for efficient debugging, troubleshooting and browser automation. Use when debugging web pages, automating browser interactions, analyzing performance, or inspecting network requests. This skill does not apply to `--slim` mode (MCP configuration).
 ---
 
+## Local addition: one shared Chrome session (this repository)
+
+Every new DevTools connection to the owner's Chrome shows an "Allow remote debugging?" prompt.
+Keep one long-lived connection and reuse it instead of attaching again:
+
+1. `pnpm chrome-session status`. If `stopped`, run `pnpm chrome-session start` in the background and
+   tell the owner to click **Allow** once in Chrome. It attaches to the owner's running Chrome with
+   `--autoConnect`; never launch another browser. If Chrome is not running, ask the owner.
+2. Scripts: connect with `connectChrome()` from `scripts/chrome-session.ts`. It reuses the shared
+   session when running, otherwise opens a private connection (which prompts). `capture-session` uses it.
+3. Agents: `pnpm chrome-session call <tool> '<json arguments>'`, e.g. `pnpm chrome-session call list_pages`.
+   `get_network_request` is refused there because its output holds cookies and tokens; read network
+   requests only inside scripts.
+4. Do not open other connections while the shared session runs, and stop leftover ones: each is
+   another prompt. Stop with `pnpm chrome-session stop` when the work is done.
+
+The socket is `~/.local/state/threads-private-api/chrome.sock` (owner-only); the log holds no tool results.
+
 ## Core Concepts
 
 **Browser lifecycle**: Browser starts automatically on first tool call using a persistent Chrome profile. Configure via CLI args in the MCP server configuration: `npx chrome-devtools-mcp@latest --help`.

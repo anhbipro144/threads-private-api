@@ -32,6 +32,32 @@ and independently confirmed exactly one receipt on B.
 - Stop on login challenge, unexpected account content, or access-control barrier.
   Do not bypass security or broaden account/recipient scope.
 
+## E27-MARK-READ-LATER-PROCESS-20261114 — a saved mark-read form used 11 minutes later
+
+Run 2026-11-14 on the shop test account with one test customer. `capture-session
+--with-mark-read` (no `--with-send`) opened the unread test chat in its own background tab;
+the page's `WmiSlideThreadMutationsMarkReadMutation` was captured and saved to the
+owner-only session file; `markReadUsable` printed. The customer then sent one new message
+and, 11 minutes after the capture, a separate Node process loaded the file and read the
+inbox (chat `is_unread: true`), called `markThreadRead` once with the saved form, and read
+the inbox again 3 s later (`is_unread: false`). **REPRODUCED** once: a form saved by an
+earlier page load works from a later, separate process.
+At this first run, receiver handling and the send template were not verified. The live send
+form had changed its `logging_data` shape; the follow-up below covers both gaps. Form
+lifetime beyond the observed checks remains untested.
+
+### Follow-up — delayed read with receiver running
+
+A fresh test message was marked read from a separate Node process using a form
+captured 14 minutes earlier. Threads reported unread before and read after. The
+app receiver stayed live, and the test conversation's stored message count did
+not change across the read event. A separate combined capture subsequently saved
+both mark-read and text-send forms, and one SDK reply was accepted after the
+observed navigation metadata was removed from the saved send template. A separate Node process then used the combined capture 11 minutes after capture,
+after another fresh test message. Threads reported unread before and read afterward;
+the receiver remained live without an observed error, and the stored message count
+remained 26 before and after the read event.
+
 ## E26-IMAGE-URL-20261109 — received image URL downloads without cookies
 
 Hypothesis: the `url` of a received `image` message can be downloaded without the

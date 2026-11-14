@@ -12,6 +12,10 @@ owner instructions take precedence over downloaded advice.
 | cookie-debugging | chrome-devtools-mcp 1.12.0 | af2834411a564d366f9cab63efb046d9084f4dba | Apache-2.0 |
 | troubleshooting | chrome-devtools-mcp 1.12.0 | af2834411a564d366f9cab63efb046d9084f4dba | Apache-2.0 |
 
+Local change (2026-11-13): `chrome-devtools/SKILL.md` has a marked "Local addition: one shared
+Chrome session" section for this repository; the upstream text is otherwise unchanged. Keep it when
+updating the vendored copy.
+
 Corresponding package licenses are included in each directory. Lockfile integrity
 identifies npm package bytes; release commit IDs identify the upstream source
 reference and do not independently prove full tarball/source equivalence.
