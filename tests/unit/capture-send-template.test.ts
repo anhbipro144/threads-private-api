@@ -36,9 +36,17 @@ test('captures a reusable send template without text, mutation or any send reque
   });
 });
 
+test('removes observed navigation metadata from a captured send template', () => {
+  const result = captureSendTemplate(request({ logging_data: { nav_chain: 'synthetic private navigation' } }), inbox, 'shop', 'chat-A');
+  assert('send' in result);
+  assert.equal(JSON.parse(new URLSearchParams(result.send.body).get('variables')!).logging_data, null);
+  assert(!result.send.body.includes('synthetic'));
+});
+
 test('refuses wrong chat, quoted, mentioned, photo and malformed requests with value-free reasons', () => {
   for (const captured of [
     request({ thread_fbid: 'chat-B' }), request({ replied_to_message_id: 'private-quote' }),
+    request({ logging_data: { nav_chain: 123 } }), request({ logging_data: { nav_chain: 'x', extra: true } }),
     request({ mentioned_users: ['private-mention'] }), request({}, 'WmiSlideMediaMessageMutation'),
     { headers: {}, body: 'variables=private-invalid-json' },
     { ...request(), body: request().body + '&variables=%7B%7D' },

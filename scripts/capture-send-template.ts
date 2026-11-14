@@ -9,9 +9,15 @@ export function captureSendTemplate(request: ThreadsReadRequest, inbox: ThreadLi
   const senderFbid = inbox.threads.flatMap(chat => chat.members).find(member => member.username === username)?.id;
   if (!senderFbid) return { reason: 'senderUnconfirmed' };
   try {
-    new ThreadsTextSendAttempt({ capture: { ...request, senderFbid }, text: SEND_TEMPLATE_PLACEHOLDER });
     const form = new URLSearchParams(request.body);
+    if (form.getAll('variables').length !== 1) return { reason: 'sendTemplateUnusable' };
     const variables = JSON.parse(form.get('variables')!);
+    if (variables.logging_data && typeof variables.logging_data === 'object' && !Array.isArray(variables.logging_data) &&
+        Object.keys(variables.logging_data).length === 1 && typeof variables.logging_data.nav_chain === 'string') {
+      variables.logging_data = null;
+      form.set('variables', JSON.stringify(variables));
+    }
+    new ThreadsTextSendAttempt({ capture: { ...request, body: form.toString(), senderFbid }, text: SEND_TEMPLATE_PLACEHOLDER });
     if (variables.thread_fbid !== threadId) return { reason: 'sendTemplateUnusable' };
     variables.text_body = { sensitive_string_value: SEND_TEMPLATE_PLACEHOLDER };
     form.set('variables', JSON.stringify(variables));

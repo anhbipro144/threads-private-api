@@ -1,14 +1,14 @@
 // Owner-run capture: attaches to the owner's open, logged-in Chrome, reads one Threads session in
 // memory and saves it to a private file. It never logs in, answers a challenge or prints session values.
 import { parseArgs } from 'node:util';
-import { StdioMcp } from './verification/stdio-mcp.ts';
-import { ThreadsDmIncoming, ThreadsDmReader, ThreadsTextSendAttempt, loadThreadsSession, saveThreadsSession, sessionFromCapturedForms } from '../src/index.ts';
+import { connectChrome } from './chrome-session.ts';
+import { ThreadsDmIncoming, ThreadsDmReader, ThreadsTextSendAttempt, loadThreadsSession, markThreadRead, saveThreadsSession, sessionFromCapturedForms } from '../src/index.ts';
 import type { ThreadsIncomingSession, ThreadsTextSendCapture } from '../src/index.ts';
 import { captureSendTemplate, SEND_TEMPLATE_PLACEHOLDER } from './capture-send-template.ts';
 
-const { values: { username, out, thread, 'with-send': withSend } } = parseArgs({ options: { username: { type: 'string' }, out: { type: 'string' }, thread: { type: 'string' }, 'with-send': { type: 'boolean' } } });
+const { values: { username, out, thread, 'with-send': withSend, 'with-mark-read': withMarkRead } } = parseArgs({ options: { username: { type: 'string' }, out: { type: 'string' }, thread: { type: 'string' }, 'with-send': { type: 'boolean' }, 'with-mark-read': { type: 'boolean' } } });
 if (!username || !/^[A-Za-z0-9._]+$/.test(username) || !out || (thread !== undefined && !/^\d+$/.test(thread)) || (withSend && !thread)) {
-  console.error('usage: pnpm capture-session --username <shop account> --out <absolute file> [--thread <chat id to open>] [--with-send (requires --thread)]');
+  console.error('usage: pnpm capture-session --username <shop account> --out <absolute file> [--thread <chat id to open>] [--with-send (requires --thread)] [--with-mark-read (the opened chat must be unread)]');
   process.exit(2);
 }
 const step = (label: string, value?: unknown) => console.log(value === undefined ? label : `${label} ${JSON.stringify(value)}`);
@@ -34,8 +34,7 @@ const hook = `(() => {
   } });
 })();`;
 
-const root = new URL('..', import.meta.url).pathname;
-const mcp = new StdioMcp(`${root}node_modules/.bin/chrome-devtools-mcp`, ['--autoConnect', '--no-usage-statistics', '--no-performance-crux'], root);
+const mcp = await connectChrome();
 type ToolResult = { isError?: boolean; content: { text?: string }[] };
 const call = async (name: string, args: object, timeoutMs = 60_000): Promise<string> => {
   const request = () => mcp.request('tools/call', { name, arguments: args }, timeoutMs) as Promise<ToolResult>;
@@ -61,6 +60,8 @@ function parseRequest(text: string) {
 let threadListBody: string | undefined, messageListBody: string | undefined, requests: ReturnType<typeof parseRequest> | undefined;
 let incoming: ThreadsIncomingSession | undefined;
 let send: ThreadsTextSendCapture | undefined;
+let markRead: ReturnType<typeof parseRequest> | undefined;
+const MARK_READ = 'WmiSlideThreadMutationsMarkReadMutation';
 await mcp.initialize();
 try {
   const known = new Set(ids(await call('list_pages', {}, 180_000)));
@@ -82,6 +83,8 @@ try {
           if (seen.has(reqid)) continue;
           seen.add(reqid);
           const request = parseRequest(await call('get_network_request', { pageId, reqid: Number(reqid) }));
+          // The page marks an unread chat read while other forms are awaited; keep that form when it passes by.
+          if (withMarkRead && !markRead && new URLSearchParams(request.body).get('fb_api_req_friendly_name') === MARK_READ) markRead = request;
           if (match(new URLSearchParams(request.body))) return request;
         }
       }
@@ -94,7 +97,19 @@ try {
     if (!await click(thread ? `a[href*="/messages/t/${thread}"]` : 'a[href^="/messages/t/"]')) throw new Error('no chat to open in the inbox');
     messageListBody = (await grab(form => name(form) === 'BarcelonaMessageListContainerQuery'))?.body;
     step('messageListCaptured', !!messageListBody);
-    if (!await click('a[href="/messages/requests"]')) throw new Error('Message requests link not found');
+    if (withMarkRead) {
+      markRead ??= await grab(form => name(form) === MARK_READ);
+      step('markReadCaptured', !!markRead);
+      if (!markRead) throw new Error('markReadMissing (open an unread chat); nothing saved');
+    }
+    // An open chat may not render the Requests link yet; wait, then go back to the inbox list in-page.
+    let requestsLink = false;
+    for (let attempt = 0; attempt < 6 && !requestsLink; attempt++) {
+      if (attempt === 3) { await click('a[href="/messages/"]') || await click('a[href="/messages"]'); }
+      requestsLink = await click('a[href="/messages/requests"]');
+      if (!requestsLink) await delay(1_500);
+    }
+    if (!requestsLink) throw new Error('Message requests link not found');
     requests = await grab(form => name(form) === 'BarcelonaMessagesThreadListMailboxQuery' && folder(form) === 'PENDING');
     step('requestsListCaptured', !!requests);
     // The inbox list request does not fire in the page; the requests form with folder INBOX reads it (E21).
@@ -166,6 +181,7 @@ await saveThreadsSession(out, {
   version: 1, username, capturedAt: new Date().toISOString(),
   forms: { threadListBody, messageListBody, headers: requests.headers }, requestsListBody: requests.body, incoming,
   ...(send ? { send } : {}),
+  ...(markRead ? { markRead } : {}),
 });
 step('saved', true);
 
@@ -179,6 +195,13 @@ if (withSend) {
     threadId: inbox.threads.find(chat => chat.id !== thread)?.id ?? thread!,
   });
   step('sendTemplateUsable', true);
+}
+if (withMarkRead) {
+  if (!saved.markRead) throw new Error('markReadUnusable');
+  // Runs the SDK's form checks only; the stub stops before any request is sent.
+  const stop = new Error('stop');
+  await markThreadRead({ capture: saved.markRead, fetchImpl: async () => { throw stop; } }).catch(error => { if (error !== stop) throw error; });
+  step('markReadUsable', true);
 }
 const receiver = new ThreadsDmIncoming({ session: saved.incoming, onMessage() {} });
 try { await receiver.start(); step('receiverReady', true); } finally { receiver.stop(); }

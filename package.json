@@ -29,7 +29,8 @@
     "verify:package": "node scripts/verification/package-smoke.mjs",
     "lint": "tsc --noEmit",
     "verify:mcp": "node scripts/verification/mcp-smoke.ts",
-    "capture-session": "node scripts/capture-session.ts"
+    "capture-session": "node scripts/capture-session.ts",
+    "chrome-session": "node scripts/chrome-session.ts"
   },
   "devDependencies": {
     "@fission-ai/openspec": "1.14.3",
